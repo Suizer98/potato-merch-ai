@@ -1,90 +1,9 @@
-﻿services:
-  postgres:
-    image: twentycrm/twenty-postgres:latest
-    volumes:
-      - pg-data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_USER: twenty
-      POSTGRES_PASSWORD: twenty
-      POSTGRES_DB: twenty
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U twenty -d twenty"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    restart: unless-stopped
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    restart: unless-stopped
-  change-detect:
-    image: twentycrm/twenty:latest
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    env_file:
-      - .env
-    command: ["yarn", "command:prod", "upgrade"]
-    restart: "no"
-  server:
-    image: twentycrm/twenty:latest
-    depends_on:
-      change-detect:
-        condition: service_completed_successfully
-    env_file:
-      - .env
-    ports:
-      - "${CRM_SERVER_PORT:-3000}:3000"
-    volumes:
-      - server-local-data:/app/packages/twenty-server/.local-storage
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/healthz 2>/dev/null | grep -q ok || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-      start_period: 30s
-    restart: unless-stopped
-  worker:
-    image: twentycrm/twenty:latest
-    depends_on:
-      server:
-        condition: service_healthy
-    env_file:
-      - .env
-    environment:
-      DISABLE_DB_MIGRATIONS: "true"
-      DISABLE_CRON_JOBS_REGISTRATION: "true"
-    command: ["yarn", "worker:prod"]
-    restart: unless-stopped
-  seed:
-    image: python:3.12-alpine
-    depends_on:
-      server:
-        condition: service_healthy
-    environment:
-      CRM_URL: http://server:3000
-      SERVER_URL: ${SERVER_URL:-http://localhost:3000}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
-      ADMIN_FIRST_NAME: ${ADMIN_FIRST_NAME:-Admin}
-      ADMIN_LAST_NAME: ${ADMIN_LAST_NAME:-Owner}
-      ADMIN_JOB_TITLE: ${ADMIN_JOB_TITLE:-Owner}
-      WORKSPACE_NAME: ${WORKSPACE_NAME:-Potato Merch}
-    volumes:
-      - ./seed.py:/seed.py:ro
-      - seed-state:/state
-    entrypoint: ["python3", "/seed.py"]
-    restart: "no"
-volumes:
-  pg-data:
-  redis-data:
-  server-local-data:
-  seed-state:
+﻿# Deprecated: use the root compose file instead.
+#   cd .. && docker compose up --build
+#
+# This stub only forwards to the root file. The explicit name keeps both
+# entrypoints on the same Compose project so ports/volumes aren't duplicated.
+name: protobuf-ai-potato
+
+include:
+  - path: ../docker-compose.yml

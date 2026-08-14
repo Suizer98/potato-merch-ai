@@ -19,4 +19,4 @@ docker-down:
 	docker compose down
 
 docker-scale:
-	docker compose --profile scale up --build -d --scale chat=2
+	docker compose up --build -d --scale chat=2

@@ -12,27 +12,31 @@ cmd/server                     # gRPC server entrypoint
 internal/llm                   # mock + openai-compatible (openai, groq) providers
 internal/session               # in-memory session history
 internal/server                # Chat RPC handlers
+crm/                           # Twenty CRM env + seed (compose lives at repo root)
+store/                         # Potato Merch storefront (Vite + React)
 Dockerfile                     # buf generate + static binary (local chat)
 Dockerfile.grpcui              # browser gRPC UI only
 Dockerfile.render              # Render all-in-one: chat + grpcui
-docker-compose.yml             # chat + grpcui (+ optional redis)
+docker-compose.yml             # chat + grpcui + CRM + store
 scripts/render-entrypoint.sh   # starts gRPC then grpcui
-
 ```
 
 ## Quick start
 
-### Docker
+### Docker (everything)
 
 ```bash
 cp .env.example .env
+cp crm/.env.example crm/.env
 docker compose up --build
 ```
 
 - gRPC server: `:50051`
 - Browser UI (grpcui): [http://localhost:8080](http://localhost:8080)
+- CRM (Twenty): [http://localhost:3000](http://localhost:3000)
+- Merch store: [http://localhost:3001](http://localhost:3001)
 
-Default provider is `mock` (no API key needed).
+Default chat provider is `mock` unless you set `LLM_PROVIDER` in `.env`.
 
 ### Groq
 
@@ -69,8 +73,8 @@ make run
 ## Scaling path
 
 1. Chat containers are mostly stateless: provider calls + in-memory history per process.
-2. `docker compose --profile scale up --scale chat=2` starts Redis (history sharing not wired yet).
-3. Next step: move `internal/session` to Redis so any replica can continue a session.
+2. Redis is already running for CRM; next step is wire `internal/session` to that Redis so any chat replica can continue a session.
+3. `docker compose up --build --scale chat=2` scales chat replicas (history sharing not wired yet).
 4. Put a load balancer / ingress in front of `:50051` (or use Kubernetes Deployment + Service).
 
 ## Useful commands
