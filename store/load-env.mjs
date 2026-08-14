@@ -2,9 +2,19 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const root = path.dirname(fileURLToPath(import.meta.url))
+const storeDir = path.dirname(fileURLToPath(import.meta.url))
+const repoRoot = path.join(storeDir, '..')
 
-export function loadEnvFile(filePath = path.join(root, '.env')) {
+export function loadEnvFile(filePath) {
+  const paths = filePath
+    ? [filePath]
+    : [path.join(repoRoot, '.env'), path.join(storeDir, '.env')]
+  for (const candidate of paths) {
+    loadOneEnvFile(candidate)
+  }
+}
+
+function loadOneEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return
   const text = fs.readFileSync(filePath, 'utf8')
   for (const line of text.split(/\r?\n/)) {

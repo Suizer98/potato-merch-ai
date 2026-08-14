@@ -78,7 +78,7 @@ services:
       redis:
         condition: service_healthy
     env_file:
-      - ./crm/.env
+      - .env
     command: ["yarn", "command:prod", "upgrade"]
     restart: "no"
 
@@ -92,7 +92,7 @@ services:
       change-detect:
         condition: service_completed_successfully
     env_file:
-      - ./crm/.env
+      - .env
     ports:
       - "${CRM_SERVER_PORT:-3000}:3000"
     volumes:
@@ -115,7 +115,7 @@ services:
       server:
         condition: service_healthy
     env_file:
-      - ./crm/.env
+      - .env
     environment:
       DISABLE_DB_MIGRATIONS: "true"
       DISABLE_CRON_JOBS_REGISTRATION: "true"
@@ -155,10 +155,10 @@ services:
     ports:
       - "${STORE_PORT:-3001}:3001"
     env_file:
-      - path: ./store/.env
-        required: false
+      - .env
     environment:
       PORT: ${STORE_PORT:-3001}
+      CRM_URL: http://server:3000
     healthcheck:
       test:
         [

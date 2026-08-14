@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -53,7 +54,10 @@ function crmApiPlugin(): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
+  const env = {
+    ...loadEnv(mode, path.resolve(process.cwd(), '..'), ''),
+    ...loadEnv(mode, process.cwd(), ''),
+  }
   for (const [key, value] of Object.entries(env)) {
     if (process.env[key] === undefined) process.env[key] = value
   }

@@ -12,7 +12,7 @@ cmd/server                     # gRPC server entrypoint
 internal/llm                   # mock + openai-compatible (openai, groq) providers
 internal/session               # in-memory session history
 internal/server                # Chat RPC handlers
-crm/                           # Twenty CRM env + seed (compose lives at repo root)
+crm/                           # Twenty CRM seed (compose lives at repo root)
 store/                         # Potato Merch storefront (Vite + React)
 Dockerfile                     # buf generate + static binary (local chat)
 Dockerfile.grpcui              # browser gRPC UI only
@@ -27,7 +27,6 @@ scripts/render-entrypoint.sh   # starts gRPC then grpcui
 
 ```bash
 cp .env.example .env
-cp crm/.env.example crm/.env
 docker compose up --build
 ```
 
