@@ -374,7 +374,7 @@ ORDERS_FIELDS = [
     {"name": "customerEmail", "label": "Customer Email", "type": "TEXT"},
 ]
 
-IMG = "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt="
+TEE_IMG = "/tees/"
 TEE_SIZES = "S,M,L,XL,XXL"
 FIT_SIZES = "XS,S,M,L,XL"
 
@@ -384,70 +384,70 @@ PRODUCTS = [
         "price": 25.20, "compareAtPrice": 42.00, "isOnSale": True, "availability": "IN_STOCK", "stock": 180,
         "sizes": TEE_SIZES,
         "description": "Cartoon potato slumped on a couch with a TV remote and a bag of chips, printed big across the chest. 100% heavyweight cotton (6 oz). Machine wash cold inside out; tumble dry low. Model is 6'2\" and wearing a Large.",
-        "imageUrl": IMG + "cartoon%20potato%20character%20lounging%20on%20couch%20with%20tv%20remote%20tshirt%20print",
+        "imageUrl": TEE_IMG + "tee-couch-001.png",
     },
     {
         "name": "Gym Spud Tee", "sku": "TEE-GYM-002", "category": "TEES", "season": "SEASON_2",
         "price": 25.20, "compareAtPrice": 42.00, "isOnSale": True, "availability": "IN_STOCK", "stock": 140,
         "sizes": TEE_SIZES,
         "description": "Buff cartoon potato curling dumbbells in a sweatband, with 'NEVER SKIP TATER DAY' arched underneath. 100% combed cotton (6 oz).",
-        "imageUrl": IMG + "cartoon%20muscular%20potato%20character%20lifting%20dumbbells%20with%20sweatband%20tshirt%20print",
+        "imageUrl": TEE_IMG + "tee-gym-002.png",
     },
     {
         "name": "Angry Fry Tee", "sku": "TEE-FRY-003", "category": "TEES", "season": "SEASON_3",
         "price": 26.40, "compareAtPrice": 44.00, "isOnSale": True, "availability": "IN_STOCK", "stock": 160,
         "sizes": TEE_SIZES,
         "description": "Furious cartoon potato hurling french fries, veins popping, comic halftone shading. Screenprinted front graphic with a small fry doodle on the sleeve.",
-        "imageUrl": IMG + "angry%20cartoon%20potato%20character%20throwing%20french%20fries%20comic%20style%20tshirt%20print",
+        "imageUrl": TEE_IMG + "tee-fry-003.png",
     },
     {
         "name": "Sleepy Tater Tee", "sku": "TEE-SLEEPY-004", "category": "TEES", "season": "SEASON_2",
         "price": 24.00, "compareAtPrice": 40.00, "isOnSale": True, "availability": "IN_STOCK", "stock": 120,
         "sizes": TEE_SIZES,
         "description": "Snoozing cartoon potato in a nightcap with little Zzz's floating off the shoulder. Soft-hand print, relaxed fit with dropped shoulders.",
-        "imageUrl": IMG + "sleepy%20cartoon%20potato%20character%20in%20nightcap%20with%20zzz%20tshirt%20print",
+        "imageUrl": TEE_IMG + "tee-sleepy-004.png",
     },
     {
         "name": "DJ Mash Tee", "sku": "TEE-DJ-005", "category": "TEES", "season": "SEASON_3",
         "price": 26.40, "compareAtPrice": 44.00, "isOnSale": True, "availability": "PREORDER", "stock": 0,
         "sizes": TEE_SIZES,
         "description": "Cartoon potato DJ behind the decks in oversized headphones, speaker cones blasting mash. Preorder: ships in 3-4 weeks.",
-        "imageUrl": IMG + "cartoon%20potato%20character%20dj%20with%20headphones%20behind%20turntables%20tshirt%20print",
+        "imageUrl": TEE_IMG + "tee-dj-005.png",
     },
     {
         "name": "Skater Spud Tee", "sku": "TEE-SKATE-006", "category": "TEES", "season": "SEASON_1",
         "price": 25.20, "compareAtPrice": 42.00, "isOnSale": True, "availability": "SOLD_OUT", "stock": 0,
         "sizes": TEE_SIZES,
         "description": "Cartoon potato mid-kickflip in a backwards cap, board spinning under a scribbled skyline. Season 1 archive piece.",
-        "imageUrl": IMG + "cartoon%20potato%20character%20skateboarding%20kickflip%20with%20cap%20tshirt%20print",
+        "imageUrl": TEE_IMG + "tee-skate-006.png",
     },
     {
         "name": "Chef Potato Tee", "sku": "TEE-CHEF-007", "category": "TEES", "season": "SEASON_2",
         "price": 25.20, "compareAtPrice": 42.00, "isOnSale": True, "availability": "IN_STOCK", "stock": 95,
         "sizes": TEE_SIZES,
         "description": "Cartoon potato in a chef hat tossing hash browns in a frying pan, with a tiny 'MASHED TO ORDER' banner. Front screenprint on cream cotton.",
-        "imageUrl": IMG + "cartoon%20potato%20character%20chef%20hat%20tossing%20food%20in%20frying%20pan%20tshirt%20print",
+        "imageUrl": TEE_IMG + "tee-chef-007.png",
     },
     {
         "name": "Astro Potato Tee", "sku": "TEE-ASTRO-008", "category": "TEES", "season": "SEASON_3",
         "price": 27.60, "compareAtPrice": 46.00, "isOnSale": True, "availability": "IN_STOCK", "stock": 200,
         "sizes": TEE_SIZES,
         "description": "Cartoon potato astronaut drifting through space with french fries as shooting stars. Glow-adjacent pastel palette on midnight black.",
-        "imageUrl": IMG + "cartoon%20potato%20astronaut%20floating%20in%20space%20with%20french%20fry%20stars%20tshirt%20print",
+        "imageUrl": TEE_IMG + "tee-astro-008.png",
     },
     {
         "name": "Ninja Tater Tee", "sku": "TEE-NINJA-009", "category": "TEES", "season": "SEASON_3",
         "price": 25.20, "compareAtPrice": 42.00, "isOnSale": True, "availability": "SOLD_OUT", "stock": 0,
         "sizes": TEE_SIZES,
         "description": "Masked cartoon potato ninja mid-leap with a katana and a trail of potato-peel smoke. Two-colour print on faded black.",
-        "imageUrl": IMG + "cartoon%20potato%20ninja%20character%20with%20katana%20jumping%20tshirt%20print",
+        "imageUrl": TEE_IMG + "tee-ninja-009.png",
     },
     {
         "name": "Baby Potato Tee", "sku": "TEE-BABY-010", "category": "TEES", "season": "SEASON_2",
         "price": 25.20, "compareAtPrice": 42.00, "isOnSale": True, "availability": "IN_STOCK", "stock": 110,
         "sizes": FIT_SIZES,
         "description": "Chubby cartoon baby potato with rosy cheeks and tiny sprout arms, puff-printed on a fitted baby tee. Ribbed collar, cropped length.",
-        "imageUrl": IMG + "cute%20chubby%20cartoon%20baby%20potato%20character%20with%20rosy%20cheeks%20tshirt%20print",
+        "imageUrl": TEE_IMG + "tee-baby-010.png",
     },
 ]
 
