@@ -46,6 +46,7 @@ services:
   # --- CRM (Twenty) + merch store ---
   postgres:
     image: twentycrm/twenty-postgres:latest
+    attach: false
     volumes:
       - pg-data:/var/lib/postgresql/data
     environment:
@@ -61,6 +62,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    attach: false
     volumes:
       - redis-data:/data
     healthcheck:
@@ -72,6 +74,7 @@ services:
 
   change-detect:
     image: twentycrm/twenty:latest
+    attach: false
     depends_on:
       postgres:
         condition: service_healthy
@@ -107,6 +110,7 @@ services:
 
   worker:
     image: twentycrm/twenty:latest
+    attach: false
     depends_on:
       postgres:
         condition: service_healthy
