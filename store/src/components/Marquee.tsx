@@ -1,4 +1,4 @@
-const PHRASE = 'FREE SHIPPING ON ORDERS $75 USD & UP'
+const PHRASE = 'FREE SHIPPING ON ORDERS $75 SGD & UP'
 
 export function Marquee() {
   const items = Array.from({ length: 12 }, (_, i) => (
