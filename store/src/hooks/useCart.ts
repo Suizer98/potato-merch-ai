@@ -1,8 +1,25 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CartItem, Product } from '../types'
 
+const STORAGE_KEY = 'potato-cart'
+
+function loadCart(): CartItem[] {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as CartItem[]
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
 export function useCart() {
-  const [items, setItems] = useState<CartItem[]>([])
+  const [items, setItems] = useState<CartItem[]>(loadCart)
+
+  useEffect(() => {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+  }, [items])
 
   const addItem = useCallback((product: Product, size: string) => {
     setItems((prev) => {

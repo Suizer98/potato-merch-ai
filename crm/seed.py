@@ -372,6 +372,7 @@ ORDERS_FIELDS = [
         ],
     },
     {"name": "customerEmail", "label": "Customer Email", "type": "TEXT"},
+    {"name": "lineItems", "label": "Line Items", "type": "TEXT"},
 ]
 
 TEE_IMG = "/tees/"

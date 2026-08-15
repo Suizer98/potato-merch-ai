@@ -1,4 +1,5 @@
 import { Menu } from '@base-ui/react/menu'
+import { go } from '../nav'
 
 type HeaderProps = {
   cartCount: number
@@ -51,12 +52,13 @@ export function Header({ cartCount, onOpenCart, season, onSeasonChange }: Header
           </a>
         </nav>
 
-        <a
-          href="#shop"
+        <button
+          type="button"
+          onClick={() => go('/')}
           className="font-display text-4xl leading-none tracking-[0.08em] text-paper md:absolute md:left-1/2 md:-translate-x-1/2"
         >
           POTATO
-        </a>
+        </button>
 
         <div className="flex items-center gap-4 text-xs uppercase tracking-[0.18em]">
           <span className="hidden text-mute sm:inline">

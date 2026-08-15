@@ -3,6 +3,8 @@ import { useState } from 'react'
 export function Newsletter() {
   const [email, setEmail] = useState('')
   const [done, setDone] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
   return (
     <section
@@ -25,8 +27,23 @@ export function Newsletter() {
           onSubmit={(event) => {
             event.preventDefault()
             if (!email.trim()) return
-            setDone(true)
-            setEmail('')
+            setBusy(true)
+            setError(null)
+            void fetch('/api/newsletter', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email }),
+            })
+              .then(async (res) => {
+                const data = await res.json()
+                if (!res.ok) throw new Error(data.error || 'Subscribe failed')
+                setDone(true)
+                setEmail('')
+              })
+              .catch((err: unknown) => {
+                setError(err instanceof Error ? err.message : String(err))
+              })
+              .finally(() => setBusy(false))
           }}
         >
           <label className="sr-only" htmlFor="newsletter-email">
@@ -43,15 +60,18 @@ export function Newsletter() {
           />
           <button
             type="submit"
-            className="bg-paper px-5 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-ink hover:bg-accent"
+            disabled={busy}
+            className="bg-paper px-5 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-ink hover:bg-accent disabled:opacity-60"
           >
             Subscribe
           </button>
         </form>
       </div>
-      {done ? (
+      {error ? (
+        <p className="pb-8 text-center text-xs text-sale">{error}</p>
+      ) : done ? (
         <p className="pb-8 text-center text-xs uppercase tracking-[0.2em] text-accent">
-          You’re on the list.
+          You’re on the list — saved in CRM.
         </p>
       ) : null}
     </section>

@@ -6,17 +6,30 @@ import { Header } from './components/Header'
 import { Hero } from './components/Hero'
 import { Marquee } from './components/Marquee'
 import { Newsletter } from './components/Newsletter'
+import { PayPage } from './components/PayPage'
 import { ProductGrid } from './components/ProductGrid'
+import { ThanksPage } from './components/ThanksPage'
 import { useCart } from './hooks/useCart'
 import type { Product } from './types'
 
+function currentHref() {
+  return window.location.pathname + window.location.search
+}
+
 export default function App() {
   const cart = useCart()
+  const [href, setHref] = useState(currentHref)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [cartOpen, setCartOpen] = useState(false)
   const [season, setSeason] = useState('ALL')
+
+  useEffect(() => {
+    const onPop = () => setHref(currentHref())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   useEffect(() => {
     let alive = true
@@ -44,6 +57,14 @@ export default function App() {
     if (season === 'ALL') return products
     return products.filter((product) => product.season === season)
   }, [products, season])
+
+  const url = new URL(href, window.location.origin)
+  if (url.pathname === '/pay') {
+    return <PayPage token={url.searchParams.get('t') || ''} onPaid={cart.clear} />
+  }
+  if (url.pathname === '/thanks') {
+    return <ThanksPage orderNumber={url.searchParams.get('order') || ''} />
+  }
 
   return (
     <div className="root min-h-svh bg-ink text-paper">

@@ -2,8 +2,8 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { handleApi } from './api-handlers.mjs'
 import { loadEnvFile } from './load-env.mjs'
-import { fetchProductsFromCrm } from './crm-client.mjs'
 
 loadEnvFile()
 
@@ -24,15 +24,6 @@ const MIME = {
   '.ico': 'image/x-icon',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
-}
-
-function sendJson(res, status, body) {
-  const payload = JSON.stringify(body)
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-  })
-  res.end(payload)
 }
 
 function serveStatic(req, res) {
@@ -57,26 +48,16 @@ function serveStatic(req, res) {
 }
 
 const server = http.createServer(async (req, res) => {
-  if (req.method === 'GET' && (req.url || '').startsWith('/api/products')) {
-    try {
-      const products = await fetchProductsFromCrm()
-      sendJson(res, 200, { products, source: 'crm' })
-    } catch (err) {
-      console.error('[store] /api/products', err)
-      sendJson(res, 502, {
-        products: [],
-        source: 'error',
-        error: err instanceof Error ? err.message : String(err),
-      })
+  try {
+    if (await handleApi(req, res)) return
+  } catch (err) {
+    console.error('[store] api', err)
+    if (!res.headersSent) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Internal error' }))
     }
     return
   }
-
-  if (req.method === 'GET' && (req.url || '').startsWith('/api/health')) {
-    sendJson(res, 200, { ok: true })
-    return
-  }
-
   serveStatic(req, res)
 })
 
