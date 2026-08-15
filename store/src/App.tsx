@@ -60,10 +60,12 @@ export default function App() {
 
   const url = new URL(href, window.location.origin)
   if (url.pathname === '/pay') {
-    return <PayPage token={url.searchParams.get('t') || ''} onPaid={cart.clear} />
+    return (
+      <PayPage sessionId={url.searchParams.get('session_id') || ''} onPaid={cart.clear} />
+    )
   }
   if (url.pathname === '/thanks') {
-    return <ThanksPage orderNumber={url.searchParams.get('order') || ''} />
+    return <ThanksPage sessionId={url.searchParams.get('session_id') || ''} onPaid={cart.clear} />
   }
 
   return (

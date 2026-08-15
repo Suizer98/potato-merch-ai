@@ -14,7 +14,8 @@ RUN npm run build
 FROM node:22-alpine AS runtime
 WORKDIR /app
 COPY package.json ./
-COPY server.mjs crm-client.mjs load-env.mjs api-handlers.mjs ./
+COPY --from=deps /app/node_modules ./node_modules
+COPY server.mjs crm-client.mjs load-env.mjs api-handlers.mjs pay-sessions.mjs stripe-pay.mjs ./
 COPY --from=build /app/dist ./dist
 ENV NODE_ENV=production
 ENV PORT=3001

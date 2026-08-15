@@ -1,12 +1,24 @@
-import { randomUUID } from 'node:crypto'
 import {
   createOrder,
   fetchProductsFromCrm,
   updateOrderStatus,
   upsertCustomer,
 } from './crm-client.mjs'
-
-const pendingPays = new Map()
+import {
+  applyHostedResult,
+  buildWebhookEvent,
+  createCheckoutSession,
+  getCheckoutSession,
+  publicSession,
+  signWebhook,
+  verifyWebhook,
+} from './pay-sessions.mjs'
+import {
+  createStripeCheckout,
+  parseStripeWebhook,
+  retrieveStripeSession,
+  stripeEnabled,
+} from './stripe-pay.mjs'
 
 function json(res, status, body) {
   const payload = JSON.stringify(body)
@@ -17,24 +29,19 @@ function json(res, status, body) {
   res.end(payload)
 }
 
-function readBody(req) {
+function readRaw(req) {
   return new Promise((resolve, reject) => {
     const chunks = []
     req.on('data', (chunk) => chunks.push(chunk))
-    req.on('end', () => {
-      const raw = Buffer.concat(chunks).toString('utf8')
-      if (!raw) {
-        resolve({})
-        return
-      }
-      try {
-        resolve(JSON.parse(raw))
-      } catch (err) {
-        reject(err)
-      }
-    })
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
     req.on('error', reject)
   })
+}
+
+async function readBody(req) {
+  const raw = await readRaw(req)
+  if (!raw) return { raw: '', body: {} }
+  return { raw, body: JSON.parse(raw) }
 }
 
 function lineSummary(items) {
@@ -45,6 +52,39 @@ function lineSummary(items) {
 
 function nextOrderNumber() {
   return `ORD-${Date.now().toString(36).toUpperCase()}`
+}
+
+async function applyWebhookEvent(event) {
+  const object = event.data?.object || {}
+  const orderId = object.metadata?.orderId
+  if (!orderId) throw new Error('Webhook session missing orderId')
+
+  if (event.type === 'checkout.session.completed' && object.payment_status === 'paid') {
+    await updateOrderStatus(orderId, 'PAID')
+    return { received: true, crmStatus: 'PAID' }
+  }
+  if (
+    event.type === 'payment_intent.payment_failed' ||
+    event.type === 'checkout.session.expired'
+  ) {
+    await updateOrderStatus(orderId, 'CANCELLED')
+    return { received: true, crmStatus: 'CANCELLED' }
+  }
+  return { received: true, crmStatus: null }
+}
+
+async function dispatchWebhook(session, type) {
+  const event = buildWebhookEvent(session, type)
+  const payload = JSON.stringify(event)
+  const signature = signWebhook(payload)
+  if (!verifyWebhook(payload, signature)) {
+    throw new Error('Mock webhook signature failed')
+  }
+  const result = await applyWebhookEvent(event)
+  console.log(
+    `[store] webhook ${event.type} ${session.id} → CRM ${result.crmStatus || 'ignored'}`,
+  )
+  return { event, result }
 }
 
 export async function handleApi(req, res) {
@@ -73,7 +113,7 @@ export async function handleApi(req, res) {
 
   if (req.method === 'POST' && path === '/api/newsletter') {
     try {
-      const body = await readBody(req)
+      const { body } = await readBody(req)
       const email = String(body.email || '').trim().toLowerCase()
       if (!email || !email.includes('@')) {
         json(res, 400, { error: 'Valid email required' })
@@ -94,7 +134,7 @@ export async function handleApi(req, res) {
 
   if (req.method === 'POST' && path === '/api/checkout') {
     try {
-      const body = await readBody(req)
+      const { body } = await readBody(req)
       const email = String(body.email || '').trim().toLowerCase()
       const firstName = String(body.firstName || '').trim()
       const lastName = String(body.lastName || '').trim()
@@ -117,8 +157,23 @@ export async function handleApi(req, res) {
         status: 'PENDING',
       })
 
-      const token = randomUUID()
-      pendingPays.set(token, {
+      if (stripeEnabled()) {
+        const session = await createStripeCheckout({
+          orderId: order.id,
+          orderNumber,
+          email,
+          items,
+        })
+        json(res, 200, {
+          id: session.id,
+          url: session.url,
+          payUrl: session.url,
+          orderNumber,
+        })
+        return true
+      }
+
+      const session = createCheckoutSession({
         orderId: order.id,
         orderNumber,
         total,
@@ -126,8 +181,10 @@ export async function handleApi(req, res) {
       })
 
       json(res, 200, {
+        id: session.id,
+        url: `/pay?session_id=${session.id}`,
+        payUrl: `/pay?session_id=${session.id}`,
         orderNumber,
-        payUrl: `/pay?t=${encodeURIComponent(token)}`,
       })
     } catch (err) {
       console.error('[store] /api/checkout', err)
@@ -136,49 +193,75 @@ export async function handleApi(req, res) {
     return true
   }
 
-  if (req.method === 'GET' && path === '/api/pay') {
-    const token = url.searchParams.get('t') || ''
-    const pending = pendingPays.get(token)
-    if (!pending) {
-      json(res, 404, { error: 'Payment session expired' })
-      return true
+  if (req.method === 'GET' && path.startsWith('/api/checkout/sessions/')) {
+    const id = decodeURIComponent(path.slice('/api/checkout/sessions/'.length))
+    try {
+      if (stripeEnabled() && id.startsWith('cs_')) {
+        json(res, 200, await retrieveStripeSession(id))
+        return true
+      }
+      const session = getCheckoutSession(id)
+      if (!session) {
+        json(res, 404, { error: 'Checkout session not found' })
+        return true
+      }
+      json(res, 200, publicSession(session))
+    } catch (err) {
+      json(res, 404, { error: err instanceof Error ? err.message : String(err) })
     }
-    json(res, 200, pending)
     return true
   }
 
-  if (req.method === 'POST' && path === '/api/pay') {
+  if (req.method === 'POST' && path === '/api/pay/complete') {
     try {
-      const body = await readBody(req)
-      const token = String(body.token || '')
-      const action = String(body.action || '')
-      const pending = pendingPays.get(token)
-      if (!pending) {
-        json(res, 404, { error: 'Payment session expired' })
+      const { body } = await readBody(req)
+      const sessionId = String(body.session_id || '')
+      const result = String(body.result || '')
+      const session = getCheckoutSession(sessionId)
+      if (!session) {
+        json(res, 404, { error: 'Checkout session not found' })
         return true
       }
-
-      if (action === 'success') {
-        await updateOrderStatus(pending.orderId, 'PAID')
-        pendingPays.delete(token)
+      if (session.status !== 'open') {
         json(res, 200, {
-          ok: true,
-          thanksUrl: `/thanks?order=${encodeURIComponent(pending.orderNumber)}`,
+          url: result === 'paid' ? publicSession(session).success_url : '/',
         })
         return true
       }
 
-      if (action === 'cancel' || action === 'fail') {
-        await updateOrderStatus(pending.orderId, 'CANCELLED')
-        pendingPays.delete(token)
-        json(res, 200, { ok: true, thanksUrl: '/' })
-        return true
-      }
-
-      json(res, 400, { error: 'Unknown pay action' })
+      const type = applyHostedResult(session, result)
+      await dispatchWebhook(session, type)
+      json(res, 200, {
+        url: result === 'paid' ? publicSession(session).success_url : '/',
+      })
     } catch (err) {
-      console.error('[store] /api/pay', err)
+      console.error('[store] /api/pay/complete', err)
       json(res, 502, { error: err instanceof Error ? err.message : String(err) })
+    }
+    return true
+  }
+
+  if (req.method === 'POST' && path === '/api/webhooks/payment') {
+    try {
+      const raw = await readRaw(req)
+      const header = req.headers['stripe-signature'] || req.headers['x-webhook-signature']
+      let event
+      if (stripeEnabled() && process.env.STRIPE_WEBHOOK_SECRET && req.headers['stripe-signature']) {
+        event = parseStripeWebhook(raw, req.headers['stripe-signature'])
+      } else if (!verifyWebhook(raw, header)) {
+        json(res, 400, { error: 'Invalid webhook signature' })
+        return true
+      } else {
+        event = JSON.parse(raw)
+      }
+      const result = await applyWebhookEvent(event)
+      console.log(
+        `[store] webhook ${event.type} ${event.data?.object?.id || ''} → CRM ${result.crmStatus || 'ignored'}`,
+      )
+      json(res, 200, result)
+    } catch (err) {
+      console.error('[store] /api/webhooks/payment', err)
+      json(res, 400, { error: err instanceof Error ? err.message : String(err) })
     }
     return true
   }

@@ -51,11 +51,12 @@ export function CartDrawer({
           })),
         }),
       })
-      const data = (await res.json()) as { payUrl?: string; error?: string }
-      if (!res.ok || !data.payUrl) throw new Error(data.error || 'Checkout failed')
+      const data = (await res.json()) as { payUrl?: string; url?: string; error?: string }
+      const next = data.url || data.payUrl
+      if (!res.ok || !next) throw new Error(data.error || 'Checkout failed')
+      go(next)
       onOpenChange(false)
       setStep('cart')
-      go(data.payUrl)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -160,8 +161,8 @@ export function CartDrawer({
                 }}
               >
                 <p className="text-xs text-mute">
-                  Creates a PENDING order in Twenty CRM, then redirects to a mock
-                  Potato Pay page.
+                  Creates a PENDING CRM order, then redirects to Stripe Checkout
+                  (or Potato Pay if Stripe keys are not set).
                 </p>
                 <input
                   required

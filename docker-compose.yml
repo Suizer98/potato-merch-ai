@@ -166,6 +166,7 @@ services:
     environment:
       PORT: ${STORE_PORT:-3001}
       CRM_URL: http://server:3000
+      STORE_PUBLIC_URL: ${STORE_PUBLIC_URL:-http://localhost:3001}
     healthcheck:
       test:
         [
@@ -178,6 +179,25 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    restart: unless-stopped
+
+  stripe-listen:
+    image: stripe/stripe-cli:latest
+    depends_on:
+      store:
+        condition: service_healthy
+    environment:
+      STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_DEVICE_NAME: potato-merch-compose
+    command:
+      [
+        "listen",
+        "--forward-to",
+        "http://store:3001/api/webhooks/payment",
+        "--events",
+        "checkout.session.completed,checkout.session.expired,payment_intent.payment_failed",
+        "--skip-update",
+      ]
     restart: unless-stopped
 
 volumes:
