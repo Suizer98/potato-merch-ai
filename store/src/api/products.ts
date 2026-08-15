@@ -12,10 +12,9 @@ export async function loadProducts(): Promise<ProductsResponse> {
   return data
 }
 
-export function formatMoney(amount: number, currency = 'USD') {
-  const code = (currency || 'USD').toUpperCase()
-  const locale = code === 'USD' ? 'en-US' : 'en-SG'
-  return new Intl.NumberFormat(locale, {
+export function formatMoney(amount: number, currency = 'SGD') {
+  const code = (currency || 'SGD').toUpperCase()
+  return new Intl.NumberFormat('en-SG', {
     style: 'currency',
     currency: code,
   }).format(amount)

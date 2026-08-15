@@ -63,11 +63,12 @@ Create a free Stripe account, switch the Dashboard to Test mode, and copy the se
 
 ```env
 STRIPE_SECRET_KEY=sk_test_...
-STRIPE_CURRENCY=sgd
 STORE_PUBLIC_URL=http://localhost:3001
 ```
 
-`pk_test_...` is only for Stripe.js / Elements on your own page. This shop redirects to Stripe-hosted Checkout, so the secret key on the server is enough. The store catalog stays in USD. Checkout is locked to `STRIPE_CURRENCY` (default `sgd`) with Stripe Adaptive Pricing off, so a other countries IP does not switch the payment page to that accordingly.
+`pk_test_...` is only for Stripe.js / Elements on your own page. This shop redirects to Stripe-hosted Checkout, so the secret key on the server is enough.
+
+Prices on the store and on Stripe Checkout are SGD. Adaptive Pricing is off, so a Malaysia IP does not switch Checkout to MYR.
 
 ### Webhooks in Docker
 
