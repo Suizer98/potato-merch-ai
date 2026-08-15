@@ -15,14 +15,15 @@ function publicUrl() {
   return url.replace(/\/$/, '')
 }
 
-export async function createStripeCheckout({ orderId, orderNumber, email, items }) {
+export async function createStripeCheckout({ orderId, orderNumber, email, items, stock }) {
   const stripe = client()
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     customer_email: email,
     client_reference_id: orderNumber,
-    metadata: { orderId, orderNumber },
+    metadata: { orderId, orderNumber, stock: stock || '' },
     currency: 'usd',
+    expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
     success_url: `${publicUrl()}/thanks?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${publicUrl()}/`,
     line_items: items.map((item) => ({

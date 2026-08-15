@@ -9,7 +9,7 @@
     "build:strict": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "start": "node server.mjs",
+    "start": "node server/server.mjs",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {

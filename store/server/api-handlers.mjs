@@ -1,7 +1,9 @@
 import {
   createOrder,
+  fetchOrder,
   fetchProductsFromCrm,
   updateOrderStatus,
+  updateProductStock,
   upsertCustomer,
 } from './crm-client.mjs'
 import {
@@ -81,12 +83,29 @@ async function pricedItemsFromCrm(rawItems) {
     if (product.soldOut) throw clientError(`${product.name} is sold out`)
     const quantity = quantityFromCart(item.quantity)
     items.push({
+      id: product.id,
       name: product.name,
       sku: product.sku,
       size: String(item.size || '').trim() || 'M',
       quantity,
       price: Number(product.price),
+      stock: product.stock,
+      availability: product.availability,
     })
+  }
+
+  const needed = new Map()
+  for (const item of items) {
+    if (item.availability === 'PREORDER') continue
+    needed.set(item.sku, (needed.get(item.sku) || 0) + item.quantity)
+  }
+  for (const item of items) {
+    const qty = needed.get(item.sku)
+    if (qty == null) continue
+    needed.delete(item.sku)
+    if (item.stock < qty) {
+      throw clientError(`${item.name} only has ${item.stock} left`)
+    }
   }
 
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
@@ -94,12 +113,76 @@ async function pricedItemsFromCrm(rawItems) {
   return { items, total }
 }
 
+function tracksStock(item) {
+  return item.availability !== 'PREORDER'
+}
+
+function stockMeta(items) {
+  const qty = new Map()
+  for (const item of items) {
+    if (!tracksStock(item)) continue
+    qty.set(item.sku, (qty.get(item.sku) || 0) + item.quantity)
+  }
+  return [...qty.entries()].map(([sku, n]) => `${sku}:${n}`).join(',')
+}
+
+function parseStockMeta(blob) {
+  const lines = []
+  for (const part of String(blob || '').split(',')) {
+    const [sku, qtyStr] = part.split(':')
+    const quantity = Number(qtyStr)
+    if (!sku || !Number.isFinite(quantity) || quantity <= 0) continue
+    lines.push({ sku: sku.trim(), quantity })
+  }
+  return lines
+}
+
+async function reserveStock(items) {
+  const bySku = new Map()
+  for (const item of items) {
+    if (!tracksStock(item)) continue
+    const prev = bySku.get(item.sku) || {
+      id: item.id,
+      name: item.name,
+      stock: item.stock,
+      quantity: 0,
+    }
+    prev.quantity += item.quantity
+    bySku.set(item.sku, prev)
+  }
+  for (const line of bySku.values()) {
+    const stock = line.stock - line.quantity
+    if (stock < 0) throw clientError(`${line.name} only has ${line.stock} left`)
+    await updateProductStock(line.id, stock, stock <= 0 ? 'SOLD_OUT' : 'IN_STOCK')
+  }
+}
+
+async function restockFromMeta(metadata) {
+  const lines = parseStockMeta(metadata?.stock)
+  if (!lines.length) return
+  const catalog = await fetchProductsFromCrm()
+  const bySku = new Map()
+  for (const product of catalog) {
+    if (product.sku) bySku.set(String(product.sku).toLowerCase(), product)
+  }
+  for (const line of lines) {
+    const product = bySku.get(line.sku.toLowerCase())
+    if (!product || product.availability === 'PREORDER') continue
+    const stock = product.stock + line.quantity
+    await updateProductStock(product.id, stock, stock > 0 ? 'IN_STOCK' : 'SOLD_OUT')
+  }
+}
+
 async function applyWebhookEvent(event) {
   const object = event.data?.object || {}
   const orderId = object.metadata?.orderId
   if (!orderId) throw new Error('Webhook session missing orderId')
 
+  const order = await fetchOrder(orderId)
+  const status = order?.status || ''
+
   if (event.type === 'checkout.session.completed' && object.payment_status === 'paid') {
+    if (status === 'PAID') return { received: true, crmStatus: 'PAID' }
     await updateOrderStatus(orderId, 'PAID')
     return { received: true, crmStatus: 'PAID' }
   }
@@ -107,6 +190,9 @@ async function applyWebhookEvent(event) {
     event.type === 'payment_intent.payment_failed' ||
     event.type === 'checkout.session.expired'
   ) {
+    if (status === 'PAID') return { received: true, crmStatus: 'PAID' }
+    if (status === 'CANCELLED') return { received: true, crmStatus: 'CANCELLED' }
+    await restockFromMeta(object.metadata)
     await updateOrderStatus(orderId, 'CANCELLED')
     return { received: true, crmStatus: 'CANCELLED' }
   }
@@ -245,36 +331,45 @@ export async function handleApi(req, res) {
         lineItems: lineSummary(items),
         status: 'PENDING',
       })
+      const stock = stockMeta(items)
+      await reserveStock(items)
 
-      if (stripeEnabled()) {
-        const session = await createStripeCheckout({
+      try {
+        if (stripeEnabled()) {
+          const session = await createStripeCheckout({
+            orderId: order.id,
+            orderNumber,
+            email,
+            items,
+            stock,
+          })
+          json(res, 200, {
+            id: session.id,
+            url: session.url,
+            payUrl: session.url,
+            orderNumber,
+          })
+          return true
+        }
+
+        const session = createCheckoutSession({
           orderId: order.id,
           orderNumber,
+          total,
           email,
-          items,
+          stock,
         })
+
         json(res, 200, {
           id: session.id,
-          url: session.url,
-          payUrl: session.url,
+          url: `/pay?session_id=${session.id}`,
+          payUrl: `/pay?session_id=${session.id}`,
           orderNumber,
         })
-        return true
+      } catch (err) {
+        await restockFromMeta({ stock })
+        throw err
       }
-
-      const session = createCheckoutSession({
-        orderId: order.id,
-        orderNumber,
-        total,
-        email,
-      })
-
-      json(res, 200, {
-        id: session.id,
-        url: `/pay?session_id=${session.id}`,
-        payUrl: `/pay?session_id=${session.id}`,
-        orderNumber,
-      })
     } catch (err) {
       console.error('[store] /api/checkout', err)
       const status = err && err.status === 400 ? 400 : 502

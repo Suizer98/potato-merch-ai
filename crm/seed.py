@@ -541,7 +541,7 @@ PRODUCTS = [
     },
     {
         "name": "Ninja Tater Tee", "sku": "TEE-NINJA-009", "category": "TEES", "season": "SEASON_3",
-        "price": 25.20, "compareAtPrice": 42.00, "isOnSale": True, "availability": "SOLD_OUT", "stock": 0,
+        "price": 25.20, "compareAtPrice": 42.00, "isOnSale": True, "availability": "IN_STOCK", "stock": 1,
         "sizes": TEE_SIZES,
         "description": "Masked cartoon potato ninja mid-leap with a katana and a trail of potato-peel smoke. Two-colour print on faded black.",
         "imageUrl": TEE_IMG + "tee-ninja-009.png",

@@ -15,7 +15,7 @@ function crmApiPlugin(): Plugin {
         }
         try {
           // @ts-expect-error plain .mjs module
-          const mod = (await import('./api-handlers.mjs')) as {
+          const mod = (await import('./server/api-handlers.mjs')) as {
             handleApi: (
               incoming: typeof req,
               outgoing: typeof res,

@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const storeDir = path.dirname(fileURLToPath(import.meta.url))
+const here = path.dirname(fileURLToPath(import.meta.url))
+const storeDir = path.join(here, '..')
 const repoRoot = path.join(storeDir, '..')
 
 export function loadEnvFile(filePath) {

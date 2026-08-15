@@ -16,13 +16,17 @@ export function publicSession(session) {
     currency: 'usd',
     customer_email: session.email,
     client_reference_id: session.orderNumber,
-    metadata: { orderId: session.orderId, orderNumber: session.orderNumber },
+    metadata: {
+      orderId: session.orderId,
+      orderNumber: session.orderNumber,
+      stock: session.stock || '',
+    },
     success_url: `/thanks?session_id=${session.id}`,
     cancel_url: '/',
   }
 }
 
-export function createCheckoutSession({ orderId, orderNumber, total, email }) {
+export function createCheckoutSession({ orderId, orderNumber, total, email, stock }) {
   const id = `cs_mock_${randomUUID().replaceAll('-', '')}`
   const session = {
     id,
@@ -32,6 +36,7 @@ export function createCheckoutSession({ orderId, orderNumber, total, email }) {
     orderNumber,
     total,
     email,
+    stock: stock || '',
     createdAt: Date.now(),
   }
   sessions.set(id, session)

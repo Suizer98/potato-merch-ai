@@ -8,7 +8,7 @@ import { loadEnvFile } from './load-env.mjs'
 loadEnvFile()
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const DIST = path.join(__dirname, 'dist')
+const DIST = path.join(__dirname, '..', 'dist')
 const PORT = Number(process.env.PORT || 3001)
 
 const MIME = {

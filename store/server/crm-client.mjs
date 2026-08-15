@@ -221,6 +221,63 @@ export async function createOrder({ orderNumber, total, customerEmail, lineItems
   }
 }
 
+export async function fetchOrder(id) {
+  const token = await getAccessToken()
+  const attempts = [
+    {
+      query: `query($id:UUID!){
+        orders(filter:{id:{eq:$id}}, first:1){
+          edges { node { id orderNumber status } }
+        }
+      }`,
+      variables: { id },
+      pick: (result) => result.data?.orders?.edges?.[0]?.node,
+    },
+    {
+      query: `query($id:UUID!){ order(id:$id){ id orderNumber status } }`,
+      variables: { id },
+      pick: (result) => result.data?.order,
+    },
+  ]
+  for (const attempt of attempts) {
+    const result = await gql('/graphql', attempt.query, attempt.variables, token)
+    const node = attempt.pick(result)
+    if (node?.id) {
+      return { ...node, status: selectValue(node.status) || '' }
+    }
+  }
+  return null
+}
+
+export async function updateProductStock(id, stock, availability) {
+  const token = await getAccessToken()
+  const attempts = [
+    {
+      query: `mutation($id:UUID!,$data:ProductUpdateInput!){ updateProduct(id:$id, data:$data){ id } }`,
+      variables: { id, data: { stock, availability } },
+    },
+    {
+      query: `mutation($id:UUID!,$data:ProductUpdateInput!){ updateProduct(id:$id, data:$data){ id } }`,
+      variables: { id, data: { stock, availability: { value: availability } } },
+    },
+    {
+      query: `mutation($i:UpdateOneProductInput!){ updateOneProduct(input:$i){ id } }`,
+      variables: { i: { id, update: { stock, availability } } },
+    },
+    {
+      query: `mutation($id:UUID!,$data:ProductUpdateInput!){ updateProduct(id:$id, data:$data){ id } }`,
+      variables: { id, data: { stock } },
+    },
+  ]
+  let last = null
+  for (const attempt of attempts) {
+    const result = await gql('/graphql', attempt.query, attempt.variables, token)
+    last = result
+    if (!result.errors?.length) return result.data
+  }
+  throw new Error(`CRM product stock update failed: ${firstError(last)}`)
+}
+
 export async function updateOrderStatus(id, status) {
   const token = await getAccessToken()
   const attempts = [
