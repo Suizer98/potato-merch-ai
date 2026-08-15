@@ -29,19 +29,7 @@ const (
 
 func NewRootAgent(_ context.Context, cfg config.Config, llm model.LLM) (adkagent.Agent, error) {
 	crm := newCRMClient(cfg.CRMURL, cfg.CRMOrigin, cfg.TwentyAPIKey, cfg.AdminEmail, cfg.AdminPassword)
-	shopTools, _, supportTools := mcpToolsets(cfg)
-
-	shop, err := llmagent.New(llmagent.Config{
-		Name:        ShopAgentName,
-		Model:       llm,
-		Description: "Catalog specialist for Potato Merch tees, sizes, stock, seasons, and sales.",
-		Mode:        llmagent.ModeSingleTurn,
-		Instruction: shopInstruction,
-		Toolsets:    shopTools,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("shop agent: %w", err)
-	}
+	_, _, supportTools := mcpToolsets(cfg)
 
 	support, err := llmagent.New(llmagent.Config{
 		Name:        SupportAgentName,
@@ -55,16 +43,15 @@ func NewRootAgent(_ context.Context, cfg config.Config, llm model.LLM) (adkagent
 		return nil, fmt.Errorf("support agent: %w", err)
 	}
 
-	shopNode, err := workflow.NewAgentNode(shop, workflow.NodeConfig{})
-	if err != nil {
-		return nil, fmt.Errorf("shop node: %w", err)
-	}
 	supportNode, err := workflow.NewAgentNode(support, workflow.NodeConfig{})
 	if err != nil {
 		return nil, fmt.Errorf("support node: %w", err)
 	}
 
 	classify := workflow.NewFunctionNode("classify", classifyTurn, workflow.NodeConfig{})
+	shop := workflow.NewFunctionNode(ShopAgentName, func(ctx adkagent.Context, msg string) (*adksession.Event, error) {
+		return shopTurn(ctx, msg, crm)
+	}, workflow.NodeConfig{})
 	billing := workflow.NewFunctionNode(BillingAgentName, func(ctx adkagent.Context, msg string) (*adksession.Event, error) {
 		return billingTurn(ctx, msg, crm)
 	}, workflow.NodeConfig{})
@@ -73,7 +60,7 @@ func NewRootAgent(_ context.Context, cfg config.Config, llm model.LLM) (adkagent
 	edges := workflow.Concat(
 		workflow.Chain(workflow.Start, classify),
 		[]workflow.Edge{
-			{From: classify, To: shopNode, Route: workflow.StringRoute(ShopAgentName)},
+			{From: classify, To: shop, Route: workflow.StringRoute(ShopAgentName)},
 			{From: classify, To: billing, Route: workflow.StringRoute(BillingAgentName)},
 			{From: classify, To: supportNode, Route: workflow.StringRoute(SupportAgentName)},
 			{From: classify, To: greet, Route: workflow.StringRoute(RootAgentName)},
@@ -121,6 +108,135 @@ func classifyTurn(ctx adkagent.Context, msg string) (*adksession.Event, error) {
 
 func greetTurn(_ adkagent.Context, _ string) (string, error) {
 	return "Hey — I can help with tees, orders, or shipping. What do you need?", nil
+}
+
+func shopTurn(ctx adkagent.Context, msg string, crm *crmClient) (*adksession.Event, error) {
+	text := strings.TrimSpace(msg)
+	if text == "" {
+		text = userText(ctx)
+	}
+	reply := formatCatalogReply(crm, text)
+	event := adksession.NewEvent(ctx, ctx.InvocationID())
+	event.Author = ShopAgentName
+	event.Output = reply
+	event.Content = &genai.Content{
+		Role:  genai.RoleModel,
+		Parts: []*genai.Part{{Text: reply}},
+	}
+	return event, nil
+}
+
+func formatCatalogReply(crm *crmClient, text string) string {
+	products, err := crm.listProducts()
+	if err != nil {
+		log.Printf("crm products: %v", err)
+		return "I can’t see live inventory right now. Try the store catalog, or ask again in a moment."
+	}
+	if len(products) == 0 {
+		return "The catalog is empty in CRM right now."
+	}
+	match := pickProduct(text, products)
+	if match == nil {
+		return "Which tee? We have " + productNames(products) + "."
+	}
+	return formatProduct(*match)
+}
+
+func pickProduct(text string, products []productRecord) *productRecord {
+	query := strings.ToLower(text)
+	bestIdx := -1
+	bestScore := 0
+	for i, product := range products {
+		score := productScore(query, product)
+		if score > bestScore {
+			bestScore = score
+			bestIdx = i
+		}
+	}
+	if bestIdx < 0 || bestScore < 3 {
+		return nil
+	}
+	return &products[bestIdx]
+}
+
+func productScore(query string, product productRecord) int {
+	name := strings.ToLower(product.Name)
+	sku := strings.ToLower(product.SKU)
+	if name != "" && (strings.Contains(query, name) || strings.Contains(name, strings.TrimSpace(query))) {
+		return 100
+	}
+	if sku != "" && strings.Contains(query, sku) {
+		return 80
+	}
+	score := 0
+	for _, token := range strings.FieldsFunc(name, func(r rune) bool {
+		return r == ' ' || r == '-' || r == '_'
+	}) {
+		if len(token) < 3 {
+			continue
+		}
+		if !strings.Contains(query, token) {
+			continue
+		}
+		switch token {
+		case "tee", "potato", "spud", "tater":
+			score++
+		default:
+			score += 3
+		}
+	}
+	return score
+}
+
+func productNames(products []productRecord) string {
+	names := make([]string, 0, len(products))
+	for _, product := range products {
+		if product.Name != "" {
+			names = append(names, product.Name)
+		}
+	}
+	return strings.Join(names, ", ")
+}
+
+func formatProduct(product productRecord) string {
+	status := catalogStatus(product)
+	reply := product.Name + " is " + status + "."
+	if stock := wholeNumber(product.Stock); stock != "" && !strings.EqualFold(product.Availability, "SOLD_OUT") && stock != "0" {
+		reply += " " + stock + " left."
+	}
+	if product.Price != "" {
+		reply += " " + product.Price + " SGD"
+		if product.OnSale && product.CompareAt != "" {
+			reply += " (was " + product.CompareAt + ")"
+		}
+		reply += "."
+	}
+	if product.Sizes != "" {
+		reply += " Sizes " + product.Sizes + "."
+	}
+	return reply
+}
+
+func catalogStatus(product productRecord) string {
+	switch strings.ToUpper(product.Availability) {
+	case "SOLD_OUT":
+		return "sold out"
+	case "PREORDER":
+		return "on preorder"
+	default:
+		if wholeNumber(product.Stock) == "0" {
+			return "sold out"
+		}
+		return "in stock"
+	}
+}
+
+func wholeNumber(value string) string {
+	value = strings.TrimSpace(value)
+	if strings.HasSuffix(value, ".00") {
+		return strings.TrimSuffix(value, ".00")
+	}
+	return value
 }
 
 func billingTurn(ctx adkagent.Context, msg string, crm *crmClient) (*adksession.Event, error) {
@@ -252,10 +368,6 @@ func mcpToolsets(cfg config.Config) (shop, billing, support []tool.Toolset) {
 	}
 	return shop, billing, support
 }
-
-const shopInstruction = `You are the Potato Merch shop agent.
-Answer catalog questions from CRM Product records when tools are available: name, sku, price (SGD), sizes, season, availability, stock.
-If tools fail, say you cannot see live inventory. Never invent restocks. Never change prices or stock.`
 
 const supportInstruction = `You are the Potato Merch support agent.
 Help with shipping, wash/care, fit, and restocks. Use Product tools for catalog facts.

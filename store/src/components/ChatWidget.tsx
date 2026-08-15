@@ -157,7 +157,7 @@ export function ChatWidget() {
             <div ref={bottom} />
           </div>
           <form
-            className="flex items-end border-t border-line"
+            className="flex items-center border-t border-line"
             onSubmit={(event) => {
               event.preventDefault()
               void send()

@@ -38,6 +38,20 @@ func newCRMClient(baseURL, origin, apiKey, email, password string) *crmClient {
 	}
 }
 
+type productRecord struct {
+	Found        bool
+	Name         string
+	SKU          string
+	Price        string
+	CompareAt    string
+	Stock        string
+	Availability string
+	Sizes        string
+	Season       string
+	OnSale       bool
+	Message      string
+}
+
 type orderRecord struct {
 	Found         bool   `json:"found"`
 	OrderNumber   string `json:"order_number,omitempty"`
@@ -45,6 +59,41 @@ type orderRecord struct {
 	Total         string `json:"total,omitempty"`
 	CustomerEmail string `json:"customer_email,omitempty"`
 	Message       string `json:"message,omitempty"`
+}
+
+func (c *crmClient) listProducts() ([]productRecord, error) {
+	if c == nil {
+		return nil, fmt.Errorf("CRM is not configured")
+	}
+	token, err := c.accessToken()
+	if err != nil {
+		return nil, err
+	}
+	queries := []string{
+		`query { products(first: 100) { edges { node { id name sku price compareAtPrice stock availability sizes season isOnSale } } } }`,
+		`query { products(paging:{first:100}) { edges { node { id name sku price compareAtPrice stock availability sizes season isOnSale } } } }`,
+	}
+	var lastErr error
+	for _, query := range queries {
+		data, err := c.graphql("/graphql", query, nil, token)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		nodes := connectionNodes(data, "products")
+		if len(nodes) == 0 {
+			continue
+		}
+		out := make([]productRecord, 0, len(nodes))
+		for _, node := range nodes {
+			out = append(out, productFromNode(node))
+		}
+		return out, nil
+	}
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, nil
 }
 
 func (c *crmClient) findOrder(orderNumber string) orderRecord {
@@ -97,14 +146,30 @@ func (c *crmClient) findOrder(orderNumber string) orderRecord {
 }
 
 func (c *crmClient) accessToken() (string, error) {
-	if c.apiKey != "" {
-		return c.apiKey, nil
-	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.token != "" && time.Since(c.tokenAt) < 8*time.Minute {
 		return c.token, nil
 	}
+	if c.apiKey != "" {
+		if err := c.ping(c.apiKey); err == nil {
+			c.token = c.apiKey
+			c.tokenAt = time.Now()
+			return c.apiKey, nil
+		} else {
+			log.Printf("crm api key rejected (%v); falling back to admin sign-in", err)
+			c.apiKey = ""
+		}
+	}
+	return c.signIn()
+}
+
+func (c *crmClient) ping(token string) error {
+	_, err := c.graphql("/graphql", "query { orders(paging:{first:1}){ edges { node { id } } } }", nil, token)
+	return err
+}
+
+func (c *crmClient) signIn() (string, error) {
 	if c.email == "" || c.password == "" {
 		return "", fmt.Errorf("ADMIN_EMAIL and ADMIN_PASSWORD are required")
 	}
@@ -195,18 +260,44 @@ func (c *crmClient) graphql(path, query string, variables map[string]any, token 
 	return parsed.Data, nil
 }
 
+func productFromNode(node map[string]any) productRecord {
+	return productRecord{
+		Found:        true,
+		Name:         stringField(node, "name", ""),
+		SKU:          stringField(node, "sku", ""),
+		Price:        stringField(node, "price", ""),
+		CompareAt:    stringField(node, "compareAtPrice", ""),
+		Stock:        stringField(node, "stock", ""),
+		Availability: stringField(node, "availability", ""),
+		Sizes:        stringField(node, "sizes", ""),
+		Season:       stringField(node, "season", ""),
+		OnSale:       boolField(node, "isOnSale"),
+	}
+}
+
 func firstOrderNode(data map[string]any) map[string]any {
-	orders, _ := data["orders"].(map[string]any)
-	if orders == nil {
+	nodes := connectionNodes(data, "orders")
+	if len(nodes) == 0 {
 		return nil
 	}
-	edges, _ := orders["edges"].([]any)
-	if len(edges) == 0 {
+	return nodes[0]
+}
+
+func connectionNodes(data map[string]any, key string) []map[string]any {
+	conn, _ := data[key].(map[string]any)
+	if conn == nil {
 		return nil
 	}
-	edge, _ := edges[0].(map[string]any)
-	node, _ := edge["node"].(map[string]any)
-	return node
+	edges, _ := conn["edges"].([]any)
+	out := make([]map[string]any, 0, len(edges))
+	for _, item := range edges {
+		edge, _ := item.(map[string]any)
+		node, _ := edge["node"].(map[string]any)
+		if node != nil {
+			out = append(out, node)
+		}
+	}
+	return out
 }
 
 func nestedObject(data map[string]any, keys ...string) map[string]any {
@@ -239,6 +330,19 @@ func nestedMap(data map[string]any, keys ...string) []map[string]any {
 		}
 	}
 	return out
+}
+
+func boolField(obj map[string]any, key string) bool {
+	if obj == nil {
+		return false
+	}
+	switch typed := obj[key].(type) {
+	case bool:
+		return typed
+	case string:
+		return strings.EqualFold(typed, "true")
+	}
+	return false
 }
 
 func stringField(obj map[string]any, key, fallback string) string {

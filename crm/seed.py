@@ -5,6 +5,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timedelta, timezone
 
 def required_env(name):
     value = (os.environ.get(name) or "").strip()
@@ -21,7 +22,9 @@ ADMIN_FIRST_NAME = os.environ.get("ADMIN_FIRST_NAME", "Admin")
 ADMIN_LAST_NAME = os.environ.get("ADMIN_LAST_NAME", "Owner")
 ADMIN_JOB_TITLE = os.environ.get("ADMIN_JOB_TITLE", "Owner")
 WORKSPACE_NAME = os.environ.get("WORKSPACE_NAME", "Potato Merch")
-STATE_FILE = "/state/seeded.flag"
+API_KEY_NAME = "Potato Merch Chat"
+API_KEY_FILE = "/state/twenty_api_key"
+API_KEY_NEVER_EXPIRES_DAYS = 100 * 365
 
 META = "/metadata"
 DATA = "/graphql"
@@ -273,6 +276,99 @@ def create_record(token, cap, data, ready_timeout=0):
         return False, json.dumps(errs)[:180]
 
 
+def list_record_keys(token, plural, field):
+    r = gql(
+        DATA,
+        "query { %s(paging:{first:500}){ edges { node { %s } } } }" % (plural, field),
+        token=token,
+    )
+    if gql_errors(r):
+        return set()
+    edges = (((r.get("data") or {}).get(plural)) or {}).get("edges") or []
+    values = set()
+    for edge in edges:
+        node = (edge or {}).get("node") or {}
+        value = node.get(field)
+        if isinstance(value, dict):
+            value = value.get("value")
+        if value:
+            values.add(str(value))
+    return values
+
+
+def pick_api_key_role(token):
+    r = gql(META, "query { getRoles { id label canBeAssignedToApiKeys } }", token=token)
+    roles = (r.get("data") or {}).get("getRoles") or []
+    if gql_errors(r) or not roles:
+        r = gql(META, "query { getApiKeyRoles { id label } }", token=token)
+        roles = (r.get("data") or {}).get("getApiKeyRoles") or []
+    if gql_errors(r) or not roles:
+        log(f"  WARN roles: {json.dumps(gql_errors(r) or 'none')[:200]}")
+        return None
+    for role in roles:
+        if (role.get("label") or "").lower() == "admin":
+            return role["id"]
+    for role in roles:
+        if role.get("canBeAssignedToApiKeys"):
+            return role["id"]
+    return roles[0]["id"]
+
+
+def api_key_expires_at():
+    when = datetime.now(timezone.utc) + timedelta(days=API_KEY_NEVER_EXPIRES_DAYS)
+    return when.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+
+def ensure_api_key(token):
+    role_id = pick_api_key_role(token)
+    if not role_id:
+        log("WARN: no role available for API key")
+        return None
+
+    existing = gql(META, "query { apiKeys { id name revokedAt } }", token=token)
+    if not gql_errors(existing):
+        for key in (existing.get("data") or {}).get("apiKeys") or []:
+            if key.get("name") == API_KEY_NAME and not key.get("revokedAt"):
+                gql(
+                    META,
+                    "mutation($i:RevokeApiKeyInput!){ revokeApiKey(input:$i){ id } }",
+                    {"i": {"id": key["id"]}},
+                    token=token,
+                )
+
+    expires = api_key_expires_at()
+    created = gql(
+        META,
+        "mutation($i:CreateApiKeyInput!){ createApiKey(input:$i){ id expiresAt } }",
+        {"i": {"name": API_KEY_NAME, "expiresAt": expires, "roleId": role_id}},
+        token=token,
+    )
+    if gql_errors(created):
+        log(f"WARN: createApiKey: {json.dumps(gql_errors(created))[:200]}")
+        return None
+    api_key = created["data"]["createApiKey"]
+    expires = api_key.get("expiresAt") or expires
+    minted = gql(
+        META,
+        "mutation($id:UUID!,$e:String!){ generateApiKeyToken(apiKeyId:$id,expiresAt:$e){ token } }",
+        {"id": api_key["id"], "e": expires},
+        token=token,
+    )
+    if gql_errors(minted):
+        log(f"WARN: generateApiKeyToken: {json.dumps(gql_errors(minted))[:200]}")
+        return None
+    secret = minted["data"]["generateApiKeyToken"]["token"]
+    try:
+        os.makedirs(os.path.dirname(API_KEY_FILE), exist_ok=True)
+        with open(API_KEY_FILE, "w") as fh:
+            fh.write(secret + "\n")
+    except Exception as exc:
+        log(f"WARN: could not write API key file: {exc}")
+    log(f"Twenty API key created ({API_KEY_NAME})")
+    log(f"  TWENTY_API_KEY={secret}")
+    return secret
+
+
 PRODUCTS_FIELDS = [
     {"name": "sku", "label": "SKU", "type": "TEXT"},
     {"name": "description", "label": "Description", "type": "TEXT"},
@@ -504,10 +600,6 @@ ORDERS = [
 
 
 def main():
-    if os.path.exists(STATE_FILE):
-        log("Already seeded (state flag present). Exiting.")
-        return 0
-
     if not wait_healthy():
         return 1
     time.sleep(3)
@@ -557,27 +649,28 @@ def main():
         for f in fields:
             create_field(token, {**f, "objectMetadataId": oid})
 
-    for cap, records in [
-        ("Product", PRODUCTS),
-        ("Customer", CUSTOMERS),
-        ("Order", ORDERS),
-        ("SupportTicket", TICKETS),
+    for cap, plural, key, records in [
+        ("Product", "products", "sku", PRODUCTS),
+        ("Customer", "customers", "email", CUSTOMERS),
+        ("Order", "orders", "orderNumber", ORDERS),
+        ("SupportTicket", "supportTickets", "name", TICKETS),
     ]:
-        log(f"Seeding {cap} records")
+        existing_keys = list_record_keys(token, plural, key)
+        log(f"Seeding {cap} records ({len(existing_keys)} already in CRM)")
         ok = 0
-        for i, rec in enumerate(records):
+        pending = [rec for rec in records if str(rec.get(key) or rec.get("name") or "") not in existing_keys]
+        for i, rec in enumerate(pending):
             success, err = create_record(token, cap, rec, ready_timeout=180 if i == 0 else 0)
             if success:
                 ok += 1
             else:
                 log(f"  WARN {cap}: {err}")
-        log(f"{cap} records seeded: {ok}/{len(records)}")
+        skipped = len(records) - len(pending)
+        log(f"{cap} records seeded: {ok} created, {skipped} existed, {len(records)} total")
 
-    try:
-        with open(STATE_FILE, "w") as fh:
-            fh.write("seeded\n")
-    except Exception as exc:
-        log(f"WARN: could not write state file: {exc}")
+    api_key = ensure_api_key(token)
+    if not api_key:
+        log("WARN: chat MCP will stay off until TWENTY_API_KEY is set.")
 
     log("=== DONE ===")
     log(f"  Admin email    : {ADMIN_EMAIL}")

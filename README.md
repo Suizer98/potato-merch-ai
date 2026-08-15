@@ -39,6 +39,13 @@ Rebuild only the shop after frontend changes:
 docker compose up -d --build --no-deps --force-recreate store
 ```
 
+Re-seed catalog/API key without wiping CRM:
+
+```bash
+docker compose run --rm seed
+docker compose up -d --build --force-recreate chat
+```
+
 Wipe CRM data and re-seed (destroys Postgres volumes):
 
 ```bash
@@ -125,7 +132,7 @@ Leave `STRIPE_SECRET_KEY` empty. Checkout opens `/pay?session_id=cs_mock_...`. P
 
 Live demo (grpcui): https://potato-merch-ai.onrender.com
 
-The storefront has a Chat widget that streams through `POST /api/chat` (SSE) into the Go ChatService. Shop / Billing / Support specialists are an ADK Go 2.0 graph. CRM tools use Twenty MCP at `/mcp` when `TWENTY_API_KEY` is set (Settings → API & Webhooks).
+The storefront has a Chat widget that streams through `POST /api/chat` (SSE) into the Go ChatService. Shop / Billing / Support specialists are an ADK Go 2.0 graph. Seed mints a Twenty API key for chat MCP (`/mcp`). Set `TWENTY_API_KEY` in `.env` only if you want to override that generated key.
 
 Set `LLM_PROVIDER` in `.env` to `mock`, `groq`, `gemini`, or `openai`. Groq’s `llama-3.3-70b-versatile` is retired (shutdown 16 Aug 2026); default model is `openai/gpt-oss-120b`. Gemini free-tier default is `gemini-3.5-flash`. If provider is `groq` and Groq errors, the same turn is retried with Gemini when `GEMINI_API_KEY` is set.
 

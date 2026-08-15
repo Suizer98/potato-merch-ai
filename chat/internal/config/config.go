@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const defaultTwentyAPIKeyFile = "/state/twenty_api_key"
+
 type Config struct {
 	GRPCAddr      string
 	HTTPAddr      string
@@ -41,7 +43,7 @@ func Load() Config {
 		GeminiModel:   getenv("GEMINI_MODEL", "gemini-3.5-flash"),
 		GeminiBaseURL: env("GEMINI_BASE_URL"),
 		TwentyMCPURL:  env("TWENTY_MCP_URL"),
-		TwentyAPIKey:  env("TWENTY_API_KEY"),
+		TwentyAPIKey:  twentyAPIKey(),
 		CRMURL:        env("CRM_URL"),
 		CRMOrigin:     env("SERVER_URL"),
 		AdminEmail:    env("ADMIN_EMAIL"),
@@ -58,4 +60,20 @@ func getenv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func twentyAPIKey() string {
+	path := getenv("TWENTY_API_KEY_FILE", defaultTwentyAPIKeyFile)
+	if value := readTrimmedFile(path); value != "" {
+		return value
+	}
+	return env("TWENTY_API_KEY")
+}
+
+func readTrimmedFile(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(strings.Trim(string(data), "\r"))
 }

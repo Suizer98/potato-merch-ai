@@ -44,7 +44,7 @@ func firstOrderNumber(texts ...string) string {
 
 func looksLikeCatalog(text string) bool {
 	lower := strings.ToLower(text)
-	for _, key := range []string{"tee", "size", "stock", "season", "sale", "sku", "catalog", "merch"} {
+	for _, key := range []string{"tee", "size", "stock", "season", "sale", "sku", "catalog", "merch", "potato", "spud", "tater"} {
 		if strings.Contains(lower, key) {
 			return true
 		}
