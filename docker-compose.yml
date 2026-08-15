@@ -7,18 +7,29 @@ services:
     image: protobuf-ai-potato-chat:local
     ports:
       - "${GRPC_PORT:-50051}:50051"
+      - "${CHAT_HTTP_PORT:-8081}:8081"
     environment:
-      GRPC_ADDR: ":50051"
-      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      GRPC_ADDR: ${GRPC_ADDR}
+      CHAT_HTTP_ADDR: ${CHAT_HTTP_ADDR}
+      LLM_PROVIDER: ${LLM_PROVIDER}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
-      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
-      GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+      GROQ_MODEL: ${GROQ_MODEL}
+      GROQ_BASE_URL: ${GROQ_BASE_URL}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash}
-      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}
+      GEMINI_MODEL: ${GEMINI_MODEL}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      TWENTY_MCP_URL: ${TWENTY_MCP_URL_INTERNAL}
+      TWENTY_API_KEY: ${TWENTY_API_KEY:-}
+      CRM_URL: ${CRM_URL_INTERNAL}
+      SERVER_URL: ${SERVER_URL}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    depends_on:
+      server:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "/grpc_health_probe", "-addr=:50051"]
       interval: 15s
@@ -31,7 +42,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 1G
 
   # Browser UI for gRPC. Open http://localhost:8080
   grpcui:
@@ -135,14 +146,14 @@ services:
       server:
         condition: service_healthy
     environment:
-      CRM_URL: http://server:3000
-      SERVER_URL: ${SERVER_URL:-http://localhost:3000}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
-      ADMIN_FIRST_NAME: ${ADMIN_FIRST_NAME:-Admin}
-      ADMIN_LAST_NAME: ${ADMIN_LAST_NAME:-Owner}
-      ADMIN_JOB_TITLE: ${ADMIN_JOB_TITLE:-Owner}
-      WORKSPACE_NAME: ${WORKSPACE_NAME:-Potato Merch}
+      CRM_URL: ${CRM_URL_INTERNAL}
+      SERVER_URL: ${SERVER_URL}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_FIRST_NAME: ${ADMIN_FIRST_NAME}
+      ADMIN_LAST_NAME: ${ADMIN_LAST_NAME}
+      ADMIN_JOB_TITLE: ${ADMIN_JOB_TITLE}
+      WORKSPACE_NAME: ${WORKSPACE_NAME}
     volumes:
       - ./crm/seed.py:/seed.py:ro
       - seed-state:/state
@@ -159,14 +170,17 @@ services:
         condition: service_healthy
       seed:
         condition: service_completed_successfully
+      chat:
+        condition: service_healthy
     ports:
       - "${STORE_PORT:-3001}:3001"
     env_file:
       - .env
     environment:
-      PORT: ${STORE_PORT:-3001}
-      CRM_URL: http://server:3000
-      STORE_PUBLIC_URL: ${STORE_PUBLIC_URL:-http://localhost:3001}
+      PORT: ${STORE_PORT}
+      CRM_URL: ${CRM_URL_INTERNAL}
+      STORE_PUBLIC_URL: ${STORE_PUBLIC_URL}
+      CHAT_HTTP_URL: ${CHAT_HTTP_URL_INTERNAL}
     healthcheck:
       test:
         [
@@ -193,7 +207,7 @@ services:
       [
         "listen",
         "--forward-to",
-        "http://store:3001/api/webhooks/payment",
+        "${STORE_INTERNAL_URL}/api/webhooks/payment",
         "--events",
         "checkout.session.completed,checkout.session.expired,payment_intent.payment_failed",
         "--skip-update",

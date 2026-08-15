@@ -1,5 +1,11 @@
-const CRM_URL = () => process.env.CRM_URL || 'http://localhost:3000'
-const ORIGIN = () => process.env.SERVER_URL || 'http://localhost:3000'
+function requiredEnv(name) {
+  const value = (process.env[name] || '').trim()
+  if (!value) throw new Error(name + ' is required')
+  return value
+}
+
+const CRM_URL = () => requiredEnv('CRM_URL')
+const ORIGIN = () => requiredEnv('SERVER_URL')
 const ADMIN_EMAIL = () => process.env.ADMIN_EMAIL || 'admin@example.com'
 const ADMIN_PASSWORD = () => process.env.ADMIN_PASSWORD || 'admin123'
 
@@ -114,7 +120,7 @@ function mapProduct(node) {
 export async function fetchProductsFromCrm() {
   const token = await getAccessToken()
   const query = `query {
-    products(paging: { first: 100 }) {
+    products(first: 100) {
       edges {
         node {
           id
@@ -135,32 +141,7 @@ export async function fetchProductsFromCrm() {
     }
   }`
 
-  let result = await gql('/graphql', query, undefined, token)
-  if (result.errors?.length) {
-    const alt = `query {
-      products(first: 100) {
-        edges {
-          node {
-            id
-            name
-            sku
-            description
-            price
-            compareAtPrice
-            stock
-            category
-            season
-            availability
-            sizes
-            imageUrl
-            isOnSale
-          }
-        }
-      }
-    }`
-    result = await gql('/graphql', alt, undefined, token)
-  }
-
+  const result = await gql('/graphql', query, undefined, token)
   if (result.errors?.length) {
     throw new Error(`CRM products query failed: ${JSON.stringify(result.errors)}`)
   }
@@ -187,7 +168,7 @@ async function mutate(queries) {
 export async function upsertCustomer({ email, firstName, lastName, phone, mailingAddress }) {
   const token = await getAccessToken()
   const filterQuery = `query($e:String!){
-    customers(filter:{email:{eq:$e}}, paging:{first:1}){ edges { node { id email } } }
+    customers(filter:{email:{eq:$e}}, first:1){ edges { node { id email } } }
   }`
   const found = await gql('/graphql', filterQuery, { e: email }, token)
   const existing = found.data?.customers?.edges?.[0]?.node
@@ -268,7 +249,7 @@ export async function updateOrderStatus(id, status) {
 export async function findOrderByNumber(orderNumber) {
   const token = await getAccessToken()
   const query = `query($n:String!){
-    orders(filter:{orderNumber:{eq:$n}}, paging:{first:1}){
+    orders(filter:{orderNumber:{eq:$n}}, first:1){
       edges { node { id orderNumber total status customerEmail } }
     }
   }`

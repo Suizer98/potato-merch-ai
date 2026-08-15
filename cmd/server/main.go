@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"log"
 	"net"
 	"os"
@@ -14,18 +14,26 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	chatv1 "github.com/Suizer98/protobuf-ai-potato/gen/go/chat/v1"
+	storeagent "github.com/Suizer98/protobuf-ai-potato/internal/agent"
 	"github.com/Suizer98/protobuf-ai-potato/internal/config"
-	"github.com/Suizer98/protobuf-ai-potato/internal/llm"
 	"github.com/Suizer98/protobuf-ai-potato/internal/server"
-	"github.com/Suizer98/protobuf-ai-potato/internal/session"
 )
 
 func main() {
 	cfg := config.Load()
+	ctx := context.Background()
 
-	provider, err := newProvider(cfg)
+	llm, err := storeagent.NewLLM(ctx, cfg)
 	if err != nil {
-		log.Fatalf("provider: %v", err)
+		log.Fatalf("llm: %v", err)
+	}
+	root, err := storeagent.NewRootAgent(ctx, cfg, llm)
+	if err != nil {
+		log.Fatalf("agent: %v", err)
+	}
+	chatServer, err := server.NewChatServer(root)
+	if err != nil {
+		log.Fatalf("chat server: %v", err)
 	}
 
 	listener, err := net.Listen("tcp", cfg.GRPCAddr)
@@ -34,13 +42,12 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	chatv1.RegisterChatServiceServer(grpcServer, server.NewChatServer(provider, session.NewStore()))
+	chatv1.RegisterChatServiceServer(grpcServer, chatServer)
 
 	healthServer := health.NewServer()
 	healthpb.RegisterHealthServer(grpcServer, healthServer)
 	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus(chatv1.ChatService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-
 	reflection.Register(grpcServer)
 
 	go func() {
@@ -49,6 +56,7 @@ func main() {
 			log.Fatalf("serve: %v", err)
 		}
 	}()
+	go chatServer.ServeHTTP(cfg.HTTPAddr)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
@@ -56,19 +64,4 @@ func main() {
 
 	log.Printf("shutting down")
 	grpcServer.GracefulStop()
-}
-
-func newProvider(cfg config.Config) (llm.Provider, error) {
-	switch cfg.LLMProvider {
-	case "mock":
-		return llm.NewMockProvider(), nil
-	case "openai":
-		return llm.NewOpenAIProvider(cfg.OpenAIAPIKey, cfg.OpenAIBaseURL, cfg.OpenAIModel), nil
-	case "groq":
-		return llm.NewOpenAIProvider(cfg.GroqAPIKey, cfg.GroqBaseURL, cfg.GroqModel), nil
-	case "gemini":
-		return llm.NewOpenAIProvider(cfg.GeminiAPIKey, cfg.GeminiBaseURL, cfg.GeminiModel), nil
-	default:
-		return nil, fmt.Errorf("unsupported LLM_PROVIDER %q (use mock, openai, groq, or gemini)", cfg.LLMProvider)
-	}
 }

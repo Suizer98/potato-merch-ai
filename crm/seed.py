@@ -6,8 +6,15 @@ import time
 import urllib.error
 import urllib.request
 
-CRM_URL = os.environ.get("CRM_URL", "http://server:3000")
-ORIGIN = os.environ.get("SERVER_URL", "http://localhost:3000")
+def required_env(name):
+    value = (os.environ.get(name) or "").strip()
+    if not value:
+        raise RuntimeError(name + " is required")
+    return value
+
+
+CRM_URL = required_env("CRM_URL")
+ORIGIN = required_env("SERVER_URL")
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@example.com")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
 ADMIN_FIRST_NAME = os.environ.get("ADMIN_FIRST_NAME", "Admin")

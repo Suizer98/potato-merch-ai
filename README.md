@@ -31,6 +31,7 @@ Default CRM login: `admin@example.com` / `admin123`
 | CRM (Twenty) | http://localhost:3000 |
 | grpcui | http://localhost:8080 |
 | gRPC chat | localhost:50051 |
+| Chat HTTP/SSE | localhost:8081 |
 
 Rebuild only the shop after frontend changes:
 
@@ -124,12 +125,15 @@ Leave `STRIPE_SECRET_KEY` empty. Checkout opens `/pay?session_id=cs_mock_...`. P
 
 Live demo (grpcui): https://protobuf-ai-potato.onrender.com
 
-Set `LLM_PROVIDER` in `.env` to `mock`, `groq`, `gemini`, or `openai`. Groq’s `llama-3.3-70b-versatile` is retired (shutdown 16 Aug 2026); default model is `openai/gpt-oss-120b`. Gemini free-tier default is `gemini-3.5-flash`.
+The storefront has a Chat widget that streams through `POST /api/chat` (SSE) into the Go ChatService. Shop / Billing / Support specialists are an ADK Go 2.0 graph. CRM tools use Twenty MCP at `/mcp` when `TWENTY_API_KEY` is set (Settings → API & Webhooks).
+
+Set `LLM_PROVIDER` in `.env` to `mock`, `groq`, `gemini`, or `openai`. Groq’s `llama-3.3-70b-versatile` is retired (shutdown 16 Aug 2026); default model is `openai/gpt-oss-120b`. Gemini free-tier default is `gemini-3.5-flash`. If provider is `groq` and Groq errors, the same turn is retried with Gemini when `GEMINI_API_KEY` is set.
 
 ```env
 LLM_PROVIDER=groq
 GROQ_API_KEY=gsk_...
 GROQ_MODEL=openai/gpt-oss-120b
+TWENTY_API_KEY=
 ```
 
 ```env
@@ -146,7 +150,8 @@ docker compose up -d --build --force-recreate chat
 
 gRPC:
 
-- `Chat(ChatRequest) returns (stream ChatChunk)`
+- `Chat(ChatRequest) returns (stream ChatChunk)` with `agent_id` and `event`
+- HTTP SSE at `:8081/v1/chat` (store proxies `/api/chat`)
 - `ListSessions`
 - health + reflection enabled
 

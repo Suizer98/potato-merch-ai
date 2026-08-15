@@ -7,7 +7,7 @@ COPY buf.yaml buf.gen.yaml ./
 COPY api ./api
 RUN buf generate
 
-FROM golang:1.22-alpine AS build
+FROM golang:1.26-alpine AS build
 WORKDIR /src
 RUN apk add --no-cache git ca-certificates curl \
   && mkdir -p /out
@@ -18,7 +18,7 @@ RUN curl -fsSL -o /out/grpc_health_probe \
   && chmod +x /out/grpc_health_probe
 RUN go install github.com/fullstorydev/grpcui/cmd/grpcui@${GRPCUI_VERSION} \
   && cp /go/bin/grpcui /out/grpcui
-COPY go.mod ./
+COPY go.mod go.sum ./
 COPY --from=proto /src/gen ./gen
 COPY . .
 RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -o /out/server ./cmd/server

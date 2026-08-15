@@ -1,9 +1,13 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strings"
+)
 
 type Config struct {
 	GRPCAddr      string
+	HTTPAddr      string
 	LLMProvider   string
 	OpenAIAPIKey  string
 	OpenAIModel   string
@@ -14,26 +18,43 @@ type Config struct {
 	GeminiAPIKey  string
 	GeminiModel   string
 	GeminiBaseURL string
+	TwentyMCPURL  string
+	TwentyAPIKey  string
+	CRMURL        string
+	CRMOrigin     string
+	AdminEmail    string
+	AdminPassword string
 }
 
 func Load() Config {
 	return Config{
 		GRPCAddr:      getenv("GRPC_ADDR", ":50051"),
+		HTTPAddr:      getenv("CHAT_HTTP_ADDR", ":8081"),
 		LLMProvider:   getenv("LLM_PROVIDER", "mock"),
-		OpenAIAPIKey:  os.Getenv("OPENAI_API_KEY"),
+		OpenAIAPIKey:  env("OPENAI_API_KEY"),
 		OpenAIModel:   getenv("OPENAI_MODEL", "gpt-4o-mini"),
-		OpenAIBaseURL: getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-		GroqAPIKey:    os.Getenv("GROQ_API_KEY"),
+		OpenAIBaseURL: env("OPENAI_BASE_URL"),
+		GroqAPIKey:    env("GROQ_API_KEY"),
 		GroqModel:     getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
-		GroqBaseURL:   getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
-		GeminiAPIKey:  os.Getenv("GEMINI_API_KEY"),
+		GroqBaseURL:   env("GROQ_BASE_URL"),
+		GeminiAPIKey:  env("GEMINI_API_KEY"),
 		GeminiModel:   getenv("GEMINI_MODEL", "gemini-3.5-flash"),
-		GeminiBaseURL: getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"),
+		GeminiBaseURL: env("GEMINI_BASE_URL"),
+		TwentyMCPURL:  env("TWENTY_MCP_URL"),
+		TwentyAPIKey:  env("TWENTY_API_KEY"),
+		CRMURL:        env("CRM_URL"),
+		CRMOrigin:     env("SERVER_URL"),
+		AdminEmail:    env("ADMIN_EMAIL"),
+		AdminPassword: env("ADMIN_PASSWORD"),
 	}
 }
 
+func env(key string) string {
+	return strings.TrimSpace(strings.Trim(os.Getenv(key), "\r"))
+}
+
 func getenv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
+	if value := env(key); value != "" {
 		return value
 	}
 	return fallback

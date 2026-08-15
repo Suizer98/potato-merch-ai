@@ -87,12 +87,60 @@ async function dispatchWebhook(session, type) {
   return { event, result }
 }
 
+function requiredEnv(name) {
+  const value = (process.env[name] || '').trim()
+  if (!value) throw new Error(name + ' is required')
+  return value
+}
+
+function chatHttpUrl() {
+  return requiredEnv('CHAT_HTTP_URL').replace(/\/$/, '')
+}
+
 export async function handleApi(req, res) {
   const url = new URL(req.url || '/', 'http://store.local')
   const path = url.pathname
 
   if (req.method === 'GET' && path === '/api/health') {
     json(res, 200, { ok: true })
+    return true
+  }
+
+  if (req.method === 'POST' && path === '/api/chat') {
+    try {
+      const { body } = await readBody(req)
+      const upstream = await fetch(`${chatHttpUrl()}/v1/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: body.session_id || '',
+          message: body.message || '',
+          model: body.model || '',
+          agent_id: body.agent_id || '',
+        }),
+      })
+      if (!upstream.ok || !upstream.body) {
+        const text = await upstream.text()
+        json(res, upstream.status || 502, { error: text || 'Chat unavailable' })
+        return true
+      }
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      })
+      for await (const chunk of upstream.body) {
+        res.write(chunk)
+      }
+      res.end()
+    } catch (err) {
+      console.error('[store] /api/chat', err)
+      if (!res.headersSent) {
+        json(res, 502, { error: err instanceof Error ? err.message : String(err) })
+      } else {
+        res.end()
+      }
+    }
     return true
   }
 

@@ -10,7 +10,9 @@ function client() {
 }
 
 function publicUrl() {
-  return (process.env.STORE_PUBLIC_URL || 'http://localhost:3001').replace(/\/$/, '')
+  const url = (process.env.STORE_PUBLIC_URL || '').trim()
+  if (!url) throw new Error('STORE_PUBLIC_URL is required')
+  return url.replace(/\/$/, '')
 }
 
 export async function createStripeCheckout({ orderId, orderNumber, email, items }) {

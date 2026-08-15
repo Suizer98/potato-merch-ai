@@ -62,5 +62,5 @@ const server = http.createServer(async (req, res) => {
 })
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[store] listening on :${PORT} (CRM=${process.env.CRM_URL || 'http://localhost:3000'})`)
+  console.log(`[store] listening on :${PORT} (CRM=${process.env.CRM_URL || ''})`)
 })

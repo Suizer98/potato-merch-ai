@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { loadProducts } from './api/products'
 import { CartDrawer } from './components/CartDrawer'
+import { ChatWidget } from './components/ChatWidget'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
@@ -97,6 +98,7 @@ export default function App() {
         onRemove={cart.removeItem}
         onQuantity={cart.setQuantity}
       />
+      <ChatWidget />
     </div>
   )
 }
