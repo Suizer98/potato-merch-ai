@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Suizer98/protobuf-ai-potato/internal/llm"
+	"github.com/Suizer98/potato-merch-ai/internal/llm"
 )
 
 type Session struct {

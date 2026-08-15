@@ -3,7 +3,7 @@
 #
 # This stub only forwards to the root file. The explicit name keeps both
 # entrypoints on the same Compose project so ports/volumes aren't duplicated.
-name: protobuf-ai-potato
+name: potato-merch-ai
 
 include:
   - path: ../docker-compose.yml

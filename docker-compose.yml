@@ -1,10 +1,10 @@
-name: protobuf-ai-potato
+name: potato-merch-ai
 
 services:
   # --- gRPC chat ---
   chat:
-    build: .
-    image: protobuf-ai-potato-chat:local
+    build: ./chat
+    image: potato-merch-ai-chat:local
     ports:
       - "${GRPC_PORT:-50051}:50051"
       - "${CHAT_HTTP_PORT:-8081}:8081"
@@ -47,9 +47,9 @@ services:
   # Browser UI for gRPC. Open http://localhost:8080
   grpcui:
     build:
-      context: .
+      context: ./chat
       dockerfile: Dockerfile.grpcui
-    image: protobuf-ai-potato-grpcui:local
+    image: potato-merch-ai-grpcui:local
     ports:
       - "${GRPCUI_PORT:-8080}:8080"
     depends_on:

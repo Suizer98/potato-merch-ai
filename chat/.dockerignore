@@ -1,8 +1,6 @@
 .env
-store/
-crm/
-docs/
-node_modules/
+bin/
+gen/
 .idea/
 .vscode/
 *.exe

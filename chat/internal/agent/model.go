@@ -9,7 +9,7 @@ import (
 	"google.golang.org/adk/v2/model/gemini"
 	"google.golang.org/genai"
 
-	"github.com/Suizer98/protobuf-ai-potato/internal/config"
+	"github.com/Suizer98/potato-merch-ai/internal/config"
 )
 
 func NewLLM(ctx context.Context, cfg config.Config) (model.LLM, error) {

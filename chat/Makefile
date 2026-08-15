@@ -13,10 +13,10 @@ run: build
 	./bin/server
 
 docker-up:
-	docker compose up --build -d
+	docker compose -f ../docker-compose.yml up --build -d
 
 docker-down:
-	docker compose down
+	docker compose -f ../docker-compose.yml down
 
 docker-scale:
-	docker compose up --build -d --scale chat=2
+	docker compose -f ../docker-compose.yml up --build -d --scale chat=2

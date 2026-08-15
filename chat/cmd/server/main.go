@@ -13,10 +13,10 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	chatv1 "github.com/Suizer98/protobuf-ai-potato/gen/go/chat/v1"
-	storeagent "github.com/Suizer98/protobuf-ai-potato/internal/agent"
-	"github.com/Suizer98/protobuf-ai-potato/internal/config"
-	"github.com/Suizer98/protobuf-ai-potato/internal/server"
+	chatv1 "github.com/Suizer98/potato-merch-ai/gen/go/chat/v1"
+	storeagent "github.com/Suizer98/potato-merch-ai/internal/agent"
+	"github.com/Suizer98/potato-merch-ai/internal/config"
+	"github.com/Suizer98/potato-merch-ai/internal/server"
 )
 
 func main() {

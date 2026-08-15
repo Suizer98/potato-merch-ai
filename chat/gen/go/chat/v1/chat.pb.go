@@ -344,8 +344,8 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\x0fupdated_at_unix\x18\x03 \x01(\x03R\rupdatedAtUnix2\x8e\x01\n" +
 	"\vChatService\x122\n" +
 	"\x04Chat\x12\x14.chat.v1.ChatRequest\x1a\x12.chat.v1.ChatChunk0\x01\x12K\n" +
-	"\fListSessions\x12\x1c.chat.v1.ListSessionsRequest\x1a\x1d.chat.v1.ListSessionsResponseB\x93\x01\n" +
-	"\vcom.chat.v1B\tChatProtoP\x01Z<github.com/Suizer98/protobuf-ai-potato/gen/go/chat/v1;chatv1\xa2\x02\x03CXX\xaa\x02\aChat.V1\xca\x02\aChat\\V1\xe2\x02\x13Chat\\V1\\GPBMetadata\xea\x02\bChat::V1b\x06proto3"
+	"\fListSessions\x12\x1c.chat.v1.ListSessionsRequest\x1a\x1d.chat.v1.ListSessionsResponseB\x8f\x01\n" +
+	"\vcom.chat.v1B\tChatProtoP\x01Z8github.com/Suizer98/potato-merch-ai/gen/go/chat/v1;chatv1\xa2\x02\x03CXX\xaa\x02\aChat.V1\xca\x02\aChat\\V1\xe2\x02\x13Chat\\V1\\GPBMetadata\xea\x02\bChat::V1b\x06proto3"
 
 var (
 	file_chat_v1_chat_proto_rawDescOnce sync.Once

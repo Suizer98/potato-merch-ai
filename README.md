@@ -1,4 +1,4 @@
-# protobuf-ai-potato
+# potato-merch-ai
 
 Potato Merch storefront backed by Twenty CRM, Stripe Test Mode checkout, and a Go gRPC chat service (protobuf streaming). Docker Compose runs the shop, CRM, payments webhook forwarder, and chat together.
 
@@ -123,7 +123,7 @@ Leave `STRIPE_SECRET_KEY` empty. Checkout opens `/pay?session_id=cs_mock_...`. P
 
 ## Chat (gRPC)
 
-Live demo (grpcui): https://protobuf-ai-potato.onrender.com
+Live demo (grpcui): https://potato-merch-ai.onrender.com
 
 The storefront has a Chat widget that streams through `POST /api/chat` (SSE) into the Go ChatService. Shop / Billing / Support specialists are an ADK Go 2.0 graph. CRM tools use Twenty MCP at `/mcp` when `TWENTY_API_KEY` is set (Settings → API & Webhooks).
 
@@ -155,7 +155,7 @@ gRPC:
 - `ListSessions`
 - health + reflection enabled
 
-Local chat without Docker (Go 1.22+, buf): `make run`
+Local chat without Docker (Go 1.22+, buf): `make -C chat run`
 
 ## Scaling chat
 

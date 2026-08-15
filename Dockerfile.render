@@ -3,8 +3,8 @@
 
 FROM bufbuild/buf:1.47.2 AS proto
 WORKDIR /src
-COPY buf.yaml buf.gen.yaml ./
-COPY api ./api
+COPY chat/buf.yaml chat/buf.gen.yaml ./
+COPY chat/api ./api
 RUN buf generate
 
 FROM golang:1.26-alpine AS build
@@ -18,9 +18,9 @@ RUN curl -fsSL -o /out/grpc_health_probe \
   && chmod +x /out/grpc_health_probe
 RUN go install github.com/fullstorydev/grpcui/cmd/grpcui@${GRPCUI_VERSION} \
   && cp /go/bin/grpcui /out/grpcui
-COPY go.mod go.sum ./
+COPY chat/go.mod chat/go.sum ./
 COPY --from=proto /src/gen ./gen
-COPY . .
+COPY chat/ .
 RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -o /out/server ./cmd/server
 
 FROM alpine:3.20
@@ -28,7 +28,7 @@ RUN apk add --no-cache ca-certificates
 COPY --from=build /out/server /server
 COPY --from=build /out/grpcui /grpcui
 COPY --from=build /out/grpc_health_probe /grpc_health_probe
-COPY scripts/render-entrypoint.sh /entrypoint.sh
+COPY chat/scripts/render-entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh \
   && chmod +x /entrypoint.sh /server /grpcui /grpc_health_probe
 ENV GRPC_ADDR=127.0.0.1:50051

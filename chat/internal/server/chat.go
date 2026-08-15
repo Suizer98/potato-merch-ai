@@ -12,8 +12,8 @@ import (
 	adksession "google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 
-	chatv1 "github.com/Suizer98/protobuf-ai-potato/gen/go/chat/v1"
-	storeagent "github.com/Suizer98/protobuf-ai-potato/internal/agent"
+	chatv1 "github.com/Suizer98/potato-merch-ai/gen/go/chat/v1"
+	storeagent "github.com/Suizer98/potato-merch-ai/internal/agent"
 )
 
 type ChatServer struct {

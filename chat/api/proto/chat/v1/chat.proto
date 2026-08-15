@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package chat.v1;
 
-option go_package = "github.com/Suizer98/protobuf-ai-potato/gen/go/chat/v1;chatv1";
+option go_package = "github.com/Suizer98/potato-merch-ai/gen/go/chat/v1;chatv1";
 
 service ChatService {
   rpc Chat(ChatRequest) returns (stream ChatChunk);

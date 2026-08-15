@@ -1,4 +1,4 @@
-module github.com/Suizer98/protobuf-ai-potato
+module github.com/Suizer98/potato-merch-ai
 
 go 1.26.5
 

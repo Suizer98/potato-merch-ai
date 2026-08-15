@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	chatv1 "github.com/Suizer98/protobuf-ai-potato/gen/go/chat/v1"
+	chatv1 "github.com/Suizer98/potato-merch-ai/gen/go/chat/v1"
 )
 
 type httpChatRequest struct {

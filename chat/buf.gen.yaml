@@ -3,7 +3,7 @@ managed:
   enabled: true
   override:
     - file_option: go_package_prefix
-      value: github.com/Suizer98/protobuf-ai-potato/gen/go
+      value: github.com/Suizer98/potato-merch-ai/gen/go
 plugins:
   - remote: buf.build/protocolbuffers/go
     out: gen/go
