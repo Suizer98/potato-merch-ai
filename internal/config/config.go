@@ -11,6 +11,9 @@ type Config struct {
 	GroqAPIKey    string
 	GroqModel     string
 	GroqBaseURL   string
+	GeminiAPIKey  string
+	GeminiModel   string
+	GeminiBaseURL string
 }
 
 func Load() Config {
@@ -21,8 +24,11 @@ func Load() Config {
 		OpenAIModel:   getenv("OPENAI_MODEL", "gpt-4o-mini"),
 		OpenAIBaseURL: getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
 		GroqAPIKey:    os.Getenv("GROQ_API_KEY"),
-		GroqModel:     getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+		GroqModel:     getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
 		GroqBaseURL:   getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
+		GeminiAPIKey:  os.Getenv("GEMINI_API_KEY"),
+		GeminiModel:   getenv("GEMINI_MODEL", "gemini-3.5-flash"),
+		GeminiBaseURL: getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"),
 	}
 }
 

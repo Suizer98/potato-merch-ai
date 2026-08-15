@@ -66,7 +66,9 @@ func newProvider(cfg config.Config) (llm.Provider, error) {
 		return llm.NewOpenAIProvider(cfg.OpenAIAPIKey, cfg.OpenAIBaseURL, cfg.OpenAIModel), nil
 	case "groq":
 		return llm.NewOpenAIProvider(cfg.GroqAPIKey, cfg.GroqBaseURL, cfg.GroqModel), nil
+	case "gemini":
+		return llm.NewOpenAIProvider(cfg.GeminiAPIKey, cfg.GeminiBaseURL, cfg.GeminiModel), nil
 	default:
-		return nil, fmt.Errorf("unsupported LLM_PROVIDER %q (use mock, openai, or groq)", cfg.LLMProvider)
+		return nil, fmt.Errorf("unsupported LLM_PROVIDER %q (use mock, openai, groq, or gemini)", cfg.LLMProvider)
 	}
 }

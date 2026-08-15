@@ -9,7 +9,7 @@ Live demo (grpcui): https://protobuf-ai-potato.onrender.com
 ```
 api/proto/chat/v1/chat.proto   # ChatService contract
 cmd/server                     # gRPC server entrypoint
-internal/llm                   # mock + openai-compatible (openai, groq) providers
+internal/llm                   # mock + openai-compatible (openai, groq, gemini) providers
 internal/session               # in-memory session history
 internal/server                # Chat RPC handlers
 crm/                           # Twenty CRM seed (compose lives at repo root)
@@ -43,7 +43,17 @@ Default chat provider is `mock` unless you set `LLM_PROVIDER` in `.env`.
 # .env
 LLM_PROVIDER=groq
 GROQ_API_KEY=gsk_...
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=openai/gpt-oss-120b
+docker compose up --build
+```
+
+### Gemini
+
+```bash
+# .env
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=AIza...
+GEMINI_MODEL=gemini-3.5-flash
 docker compose up --build
 ```
 
@@ -96,7 +106,7 @@ Use `Dockerfile.render` so the public URL is **grpcui** (HTTP). gRPC stays insid
 ```text
 LLM_PROVIDER=groq
 GROQ_API_KEY=gsk_...
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=openai/gpt-oss-120b
 ```
 
 Leave `PORT` alone (Render sets it). Do **not** point `GRPC_ADDR` at Render's public port — the entrypoint keeps gRPC on `127.0.0.1:50051`.
