@@ -26,7 +26,7 @@ func (m *MockLLM) GenerateContent(ctx context.Context, req *model.LLMRequest, st
 		reply := "Potato concierge (mock) here. You said: " + user
 		switch classifyRoute(user) {
 		case ShopAgentName:
-			reply = "Shop agent (mock): Couch Potato Tee is in stock in S–XXL, on sale at 25.20 SGD."
+			reply = "Shop agent (mock): Couch Potato Tee is in stock in S–XXL, on sale at 25.20 USD."
 		case BillingAgentName:
 			reply = "Billing agent (mock): Share an order number like ORD-1042 and I can look it up in CRM."
 		case SupportAgentName:

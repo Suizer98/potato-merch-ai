@@ -54,6 +54,46 @@ function nextOrderNumber() {
   return `ORD-${Date.now().toString(36).toUpperCase()}`
 }
 
+function clientError(message) {
+  const err = new Error(message)
+  err.status = 400
+  return err
+}
+
+function quantityFromCart(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return 0
+  return Math.min(20, Math.max(1, Math.round(n)))
+}
+
+async function pricedItemsFromCrm(rawItems) {
+  const catalog = await fetchProductsFromCrm()
+  const bySku = new Map()
+  for (const product of catalog) {
+    if (product.sku) bySku.set(String(product.sku).toLowerCase(), product)
+  }
+
+  const items = []
+  for (const item of rawItems) {
+    const sku = String(item.sku || '').trim()
+    const product = bySku.get(sku.toLowerCase())
+    if (!product) throw clientError(sku ? `Unknown SKU: ${sku}` : 'Each item needs a SKU')
+    if (product.soldOut) throw clientError(`${product.name} is sold out`)
+    const quantity = quantityFromCart(item.quantity)
+    items.push({
+      name: product.name,
+      sku: product.sku,
+      size: String(item.size || '').trim() || 'M',
+      quantity,
+      price: Number(product.price),
+    })
+  }
+
+  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  if (!Number.isFinite(total) || total <= 0) throw clientError('Cart total is invalid')
+  return { items, total }
+}
+
 async function applyWebhookEvent(event) {
   const object = event.data?.object || {}
   const orderId = object.metadata?.orderId
@@ -187,13 +227,14 @@ export async function handleApi(req, res) {
       const firstName = String(body.firstName || '').trim()
       const lastName = String(body.lastName || '').trim()
       const mailingAddress = String(body.mailingAddress || '').trim()
-      const items = Array.isArray(body.items) ? body.items : []
-      const total = Number(body.total)
+      const rawItems = Array.isArray(body.items) ? body.items : []
 
-      if (!email || !email.includes('@') || !items.length || !Number.isFinite(total)) {
-        json(res, 400, { error: 'Email, items, and total are required' })
+      if (!email || !email.includes('@') || !rawItems.length) {
+        json(res, 400, { error: 'Email and items are required' })
         return true
       }
+
+      const { items, total } = await pricedItemsFromCrm(rawItems)
 
       await upsertCustomer({ email, firstName, lastName, mailingAddress })
       const orderNumber = nextOrderNumber()
@@ -236,7 +277,8 @@ export async function handleApi(req, res) {
       })
     } catch (err) {
       console.error('[store] /api/checkout', err)
-      json(res, 502, { error: err instanceof Error ? err.message : String(err) })
+      const status = err && err.status === 400 ? 400 : 502
+      json(res, status, { error: err instanceof Error ? err.message : String(err) })
     }
     return true
   }

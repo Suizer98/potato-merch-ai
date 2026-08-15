@@ -78,7 +78,7 @@ STORE_PUBLIC_URL=http://localhost:3001
 
 `pk_test_...` is only for Stripe.js / Elements on your own page. This shop redirects to Stripe-hosted Checkout, so the secret key on the server is enough.
 
-Prices on the store and on Stripe Checkout are SGD. Adaptive Pricing is off, so a Malaysia IP does not switch Checkout to MYR.
+Store prices are USD. Stripe Checkout may convert via Adaptive Pricing for the shopper’s location.
 
 ### Webhooks in Docker
 

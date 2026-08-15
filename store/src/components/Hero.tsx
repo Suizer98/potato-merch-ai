@@ -27,7 +27,7 @@ export function Hero() {
         </h1>
         <p className="animate-fade-up max-w-md text-sm leading-relaxed text-paper/70 md:text-base">
           Limited drops, heavyweight cotton, cartoon potato energy. New colorways
-          and restocks ship free over $75 SGD.
+          and restocks ship free over $75.
         </p>
         <div className="animate-fade-up flex flex-wrap gap-3">
           <a

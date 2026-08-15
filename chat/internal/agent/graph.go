@@ -205,7 +205,7 @@ func formatProduct(product productRecord) string {
 		reply += " " + stock + " left."
 	}
 	if product.Price != "" {
-		reply += " " + product.Price + " SGD"
+		reply += " " + product.Price + " USD"
 		if product.OnSale && product.CompareAt != "" {
 			reply += " (was " + product.CompareAt + ")"
 		}
@@ -276,7 +276,7 @@ func formatOrderStatus(record orderRecord) string {
 	}
 	reply := "Order " + record.OrderNumber + " is " + record.Status + "."
 	if record.Total != "" {
-		reply += " Total " + record.Total + " SGD."
+		reply += " Total " + record.Total + " USD."
 	}
 	if record.CustomerEmail != "" {
 		reply += " Email on the order: " + record.CustomerEmail + "."

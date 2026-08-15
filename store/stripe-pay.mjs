@@ -22,15 +22,13 @@ export async function createStripeCheckout({ orderId, orderNumber, email, items 
     customer_email: email,
     client_reference_id: orderNumber,
     metadata: { orderId, orderNumber },
-    currency: 'sgd',
-    locale: 'en',
-    adaptive_pricing: { enabled: false },
+    currency: 'usd',
     success_url: `${publicUrl()}/thanks?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${publicUrl()}/`,
     line_items: items.map((item) => ({
       quantity: Number(item.quantity) || 1,
       price_data: {
-        currency: 'sgd',
+        currency: 'usd',
         unit_amount: Math.round(Number(item.price) * 100),
         product_data: {
           name: `${item.name} (${item.size})`,
