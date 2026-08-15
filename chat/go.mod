@@ -8,7 +8,7 @@ require (
 	google.golang.org/adk/v2 v2.2.0
 	google.golang.org/genai v1.68.0
 	google.golang.org/grpc v1.83.0
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 )
 
 require (

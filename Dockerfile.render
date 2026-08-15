@@ -19,9 +19,9 @@ RUN curl -fsSL -o /out/grpc_health_probe \
 RUN go install github.com/fullstorydev/grpcui/cmd/grpcui@${GRPCUI_VERSION} \
   && cp /go/bin/grpcui /out/grpcui
 COPY chat/go.mod chat/go.sum ./
-COPY --from=proto /src/gen ./gen
 COPY chat/ .
-RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -o /out/server ./cmd/server
+COPY --from=proto /src/gen ./gen
+RUN CGO_ENABLED=0 GOOS=linux go build -o /out/server ./cmd/server
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
