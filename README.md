@@ -16,6 +16,8 @@ Potato Merch storefront backed by Twenty CRM, Stripe Test Mode checkout, and a G
 
 <img src="docs/payment.png" alt="Stripe Checkout" width="800" />
 
+<img src="docs/billing.png" alt="Billing agent looking up an order" width="800" />
+
 ## Quick start
 
 ```bash
