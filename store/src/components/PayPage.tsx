@@ -6,6 +6,7 @@ type CheckoutSession = {
   id: string
   payment_status: string
   amount_total: number
+  currency?: string
   customer_email: string
   client_reference_id: string
 }
@@ -66,7 +67,7 @@ export function PayPage({ sessionId, onPaid }: { sessionId: string; onPaid: () =
           <p className="break-all text-[11px] uppercase tracking-[0.14em] text-mute">
             {session.id}
           </p>
-          <p className="mt-2 text-2xl">{formatMoney(session.amount_total / 100)}</p>
+          <p className="mt-2 text-2xl">{formatMoney(session.amount_total / 100, session.currency)}</p>
           <p className="mt-1 text-sm text-mute">{session.customer_email}</p>
           <p className="mt-1 text-xs text-mute">{session.client_reference_id}</p>
         </div>

@@ -10,6 +10,12 @@ Potato Merch storefront backed by Twenty CRM, Stripe Test Mode checkout, and a G
 - Potato Pay mock checkout if Stripe keys are empty
 - gRPC chat at `:50051` and grpcui at http://localhost:8080
 
+<img src="docs/landing.png" alt="Potato Merch landing" width="800" />
+
+<img src="docs/cart.png" alt="Cart and checkout" width="800" />
+
+<img src="docs/payment.png" alt="Stripe Checkout" width="800" />
+
 ## Quick start
 
 ```bash
@@ -57,10 +63,11 @@ Create a free Stripe account, switch the Dashboard to Test mode, and copy the se
 
 ```env
 STRIPE_SECRET_KEY=sk_test_...
+STRIPE_CURRENCY=sgd
 STORE_PUBLIC_URL=http://localhost:3001
 ```
 
-`pk_test_...` is only for Stripe.js / Elements on your own page. This shop redirects to Stripe-hosted Checkout, so the secret key on the server is enough.
+`pk_test_...` is only for Stripe.js / Elements on your own page. This shop redirects to Stripe-hosted Checkout, so the secret key on the server is enough. The store catalog stays in USD. Checkout is locked to `STRIPE_CURRENCY` (default `sgd`) with Stripe Adaptive Pricing off, so a other countries IP does not switch the payment page to that accordingly.
 
 ### Webhooks in Docker
 

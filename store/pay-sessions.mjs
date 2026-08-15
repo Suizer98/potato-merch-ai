@@ -13,7 +13,7 @@ export function publicSession(session) {
     status: session.status,
     payment_status: session.paymentStatus,
     amount_total: Math.round(session.total * 100),
-    currency: 'usd',
+    currency: 'sgd',
     customer_email: session.email,
     client_reference_id: session.orderNumber,
     metadata: { orderId: session.orderId, orderNumber: session.orderNumber },

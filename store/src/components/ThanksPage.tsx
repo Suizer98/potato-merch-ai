@@ -7,6 +7,7 @@ type CheckoutSession = {
   status: string
   payment_status: string
   amount_total: number
+  currency?: string
   customer_email: string
   client_reference_id: string
 }
@@ -65,7 +66,7 @@ export function ThanksPage({
         {error
           ? error
           : paid
-            ? `Webhook marked ${session.client_reference_id} Paid in Twenty. Amount ${formatMoney(session.amount_total / 100)}.`
+            ? `Webhook marked ${session.client_reference_id} Paid in Twenty. Amount ${formatMoney(session.amount_total / 100, session.currency)}.`
             : 'This page only retrieves the checkout session. CRM is updated by the webhook, not by this URL.'}
       </p>
       {session ? (
