@@ -36,6 +36,9 @@ func newMCPToolset(endpoint, apiKey string, allow []string, writes bool) (tool.T
 
 	filtered := tool.FilterToolset(base, func(_ adkagent.ReadonlyContext, t tool.Tool) bool {
 		blob := strings.ToLower(t.Name() + " " + t.Description())
+		if isDeniedTool(blob) {
+			return false
+		}
 		if !writes && isWriteTool(t.Name(), t.Description()) {
 			return false
 		}
@@ -71,6 +74,15 @@ func (t bearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 func isWriteTool(name, description string) bool {
 	blob := strings.ToLower(name + " " + description)
 	for _, key := range []string{"create", "update", "delete", "upsert", "insert", "write", "mutate", "remove"} {
+		if strings.Contains(blob, key) {
+			return true
+		}
+	}
+	return false
+}
+
+func isDeniedTool(blob string) bool {
+	for _, key := range deniedToolKeywords {
 		if strings.Contains(blob, key) {
 			return true
 		}

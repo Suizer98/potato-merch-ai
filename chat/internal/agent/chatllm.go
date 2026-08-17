@@ -165,6 +165,11 @@ func buildChatPayload(modelName string, req *model.LLMRequest, stream bool) (cha
 	if req.Model != "" {
 		payload.Model = req.Model
 	}
+	if req.Config != nil {
+		if system := contentText(req.Config.SystemInstruction); system != "" {
+			payload.Messages = append(payload.Messages, chatMessage{Role: "system", Content: system})
+		}
+	}
 	for _, content := range req.Contents {
 		if content == nil {
 			continue
@@ -193,6 +198,19 @@ func buildChatPayload(modelName string, req *model.LLMRequest, stream bool) (cha
 		}
 	}
 	return payload, nil
+}
+
+func contentText(content *genai.Content) string {
+	if content == nil {
+		return ""
+	}
+	var b strings.Builder
+	for _, part := range content.Parts {
+		if part != nil {
+			b.WriteString(part.Text)
+		}
+	}
+	return strings.TrimSpace(b.String())
 }
 
 func toolParameters(decl *genai.FunctionDeclaration) map[string]any {

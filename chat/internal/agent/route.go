@@ -5,27 +5,35 @@ import (
 	"strings"
 )
 
-const (
-	routeStateKey  = "route"
-	orderNumberKey = "orderNumber"
-)
-
 var (
 	orderNumberPattern = regexp.MustCompile(`(?i)\bord-[a-z0-9]+\b`)
 	emailPattern       = regexp.MustCompile(`(?i)\b[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}\b`)
 )
 
 func classifyRoute(text string) string {
-	if looksLikeBilling(text) {
-		return BillingAgentName
-	}
+	// Support before billing so "shipping status" / "wrong size order" don't stick on billing.
 	if looksLikeSupport(text) {
 		return SupportAgentName
+	}
+	if looksLikeBilling(text) {
+		return BillingAgentName
 	}
 	if looksLikeCatalog(text) {
 		return ShopAgentName
 	}
 	return ""
+}
+
+// wantsTopicSwitch is true when the user is leaving the current specialist
+// without naming a new one (clears sticky → greet).
+func wantsTopicSwitch(text string) bool {
+	lower := strings.ToLower(text)
+	for _, key := range topicSwitchPhrases {
+		if strings.Contains(lower, key) {
+			return true
+		}
+	}
+	return false
 }
 
 func HasOrderNumber(text string) bool {
@@ -44,7 +52,7 @@ func firstOrderNumber(texts ...string) string {
 
 func looksLikeCatalog(text string) bool {
 	lower := strings.ToLower(text)
-	for _, key := range []string{"tee", "size", "stock", "season", "sale", "sku", "catalog", "merch", "potato", "spud", "tater"} {
+	for _, key := range catalogKeywords {
 		if strings.Contains(lower, key) {
 			return true
 		}
@@ -57,9 +65,16 @@ func looksLikeBilling(text string) bool {
 		return true
 	}
 	lower := strings.ToLower(text)
-	for _, key := range []string{"order", "refund", "paid", "invoice", "payment", "status"} {
+	for _, key := range billingKeywords {
 		if strings.Contains(lower, key) {
 			return true
+		}
+	}
+	if strings.Contains(lower, "order") {
+		for _, key := range billingOrderHints {
+			if strings.Contains(lower, key) {
+				return true
+			}
 		}
 	}
 	return false
@@ -67,7 +82,7 @@ func looksLikeBilling(text string) bool {
 
 func looksLikeSupport(text string) bool {
 	lower := strings.ToLower(text)
-	for _, key := range []string{"ticket", "shipping", "wrong size", "restock", "wash"} {
+	for _, key := range supportKeywords {
 		if strings.Contains(lower, key) {
 			return true
 		}

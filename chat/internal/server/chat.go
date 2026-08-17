@@ -240,11 +240,11 @@ func handoffStatus(agentID, userText string) string {
 func friendlyToolStatus(name string) string {
 	switch strings.ToLower(name) {
 	case storeagent.ShopAgentName:
-		return "Checking the catalog…"
+		return storeagent.StatusCheckingShop
 	case storeagent.BillingAgentName:
-		return "Looking up your order…"
+		return storeagent.StatusCheckingBilling
 	case storeagent.SupportAgentName:
-		return "Checking with support…"
+		return storeagent.StatusCheckingSupport
 	default:
 		return ""
 	}
@@ -256,7 +256,7 @@ func publicError(err error) string {
 	}
 	msg := err.Error()
 	if strings.Contains(strings.ToLower(msg), "failed to find agent") {
-		return "I can help with tees, orders, or shipping. What do you need?"
+		return storeagent.GreetReply
 	}
 	return msg
 }

@@ -18,15 +18,6 @@ import (
 	"github.com/Suizer98/potato-merch-ai/internal/config"
 )
 
-const (
-	AppName          = "potato-merch"
-	RootAgentName    = "potato"
-	ShopAgentName    = "shop"
-	BillingAgentName = "billing"
-	SupportAgentName = "support"
-	DefaultUserID    = "store"
-)
-
 func NewRootAgent(_ context.Context, cfg config.Config, llm model.LLM) (adkagent.Agent, error) {
 	crm := newCRMClient(cfg.CRMURL, cfg.CRMOrigin, cfg.TwentyAPIKey, cfg.AdminEmail, cfg.AdminPassword)
 	_, _, supportTools := mcpToolsets(cfg)
@@ -34,7 +25,7 @@ func NewRootAgent(_ context.Context, cfg config.Config, llm model.LLM) (adkagent
 	support, err := llmagent.New(llmagent.Config{
 		Name:        SupportAgentName,
 		Model:       llm,
-		Description: "Shipping, fit/care, restocks, and support tickets in Twenty CRM.",
+		Description: SupportDescription,
 		Mode:        llmagent.ModeSingleTurn,
 		Instruction: supportInstruction,
 		Toolsets:    supportTools,
@@ -48,7 +39,9 @@ func NewRootAgent(_ context.Context, cfg config.Config, llm model.LLM) (adkagent
 		return nil, fmt.Errorf("support node: %w", err)
 	}
 
-	classify := workflow.NewFunctionNode("classify", classifyTurn, workflow.NodeConfig{})
+	classify := workflow.NewFunctionNode("classify", func(ctx adkagent.Context, msg string) (*adksession.Event, error) {
+		return classifyTurn(ctx, msg, llm)
+	}, workflow.NodeConfig{})
 	shop := workflow.NewFunctionNode(ShopAgentName, func(ctx adkagent.Context, msg string) (*adksession.Event, error) {
 		return shopTurn(ctx, msg, crm)
 	}, workflow.NodeConfig{})
@@ -69,7 +62,7 @@ func NewRootAgent(_ context.Context, cfg config.Config, llm model.LLM) (adkagent
 
 	root, err := workflowagent.New(workflowagent.Config{
 		Name:        RootAgentName,
-		Description: "Potato Merch storefront concierge.",
+		Description: RootDescription,
 		Edges:       edges,
 	})
 	if err != nil {
@@ -80,14 +73,29 @@ func NewRootAgent(_ context.Context, cfg config.Config, llm model.LLM) (adkagent
 	return root, nil
 }
 
-func classifyTurn(ctx adkagent.Context, msg string) (*adksession.Event, error) {
+func classifyTurn(ctx adkagent.Context, msg string, llm model.LLM) (*adksession.Event, error) {
 	text := strings.TrimSpace(msg)
 	if text == "" {
 		text = userText(ctx)
 	}
-	route := classifyRoute(text)
+	currentRoute := stickyRoute(ctx)
+	route := ""
+	if HasOrderNumber(text) {
+		route = BillingAgentName
+	} else {
+		var err error
+		route, err = classifyRouteWithLLM(ctx, llm, text, currentRoute)
+		if err != nil {
+			log.Printf("llm route: %v", err)
+			route = classifyRoute(text)
+		}
+	}
 	if route == "" {
-		route = stickyRoute(ctx)
+		if wantsTopicSwitch(text) {
+			route = RootAgentName
+		} else {
+			route = currentRoute
+		}
 	}
 	if route == "" {
 		route = RootAgentName
@@ -106,8 +114,15 @@ func classifyTurn(ctx adkagent.Context, msg string) (*adksession.Event, error) {
 	return event, nil
 }
 
-func greetTurn(_ adkagent.Context, _ string) (string, error) {
-	return "Hey — I can help with tees, orders, or shipping. What do you need?", nil
+func greetTurn(ctx adkagent.Context, _ string) (*adksession.Event, error) {
+	event := adksession.NewEvent(ctx, ctx.InvocationID())
+	event.Author = RootAgentName
+	event.Output = GreetReply
+	event.Content = &genai.Content{
+		Role:  genai.RoleModel,
+		Parts: []*genai.Part{{Text: GreetReply}},
+	}
+	return event, nil
 }
 
 func shopTurn(ctx adkagent.Context, msg string, crm *crmClient) (*adksession.Event, error) {
@@ -130,14 +145,14 @@ func formatCatalogReply(crm *crmClient, text string) string {
 	products, err := crm.listProducts()
 	if err != nil {
 		log.Printf("crm products: %v", err)
-		return "I can’t see live inventory right now. Try the store catalog, or ask again in a moment."
+		return CatalogUnavailable
 	}
 	if len(products) == 0 {
-		return "The catalog is empty in CRM right now."
+		return CatalogEmpty
 	}
 	match := pickProduct(text, products)
 	if match == nil {
-		return "Which tee? We have " + productNames(products) + "."
+		return catalogAskWhich(productNames(products))
 	}
 	return formatProduct(*match)
 }
@@ -220,14 +235,14 @@ func formatProduct(product productRecord) string {
 func catalogStatus(product productRecord) string {
 	switch strings.ToUpper(product.Availability) {
 	case "SOLD_OUT":
-		return "sold out"
+		return StatusSoldOut
 	case "PREORDER":
-		return "on preorder"
+		return StatusPreorder
 	default:
 		if wholeNumber(product.Stock) == "0" {
-			return "sold out"
+			return StatusSoldOut
 		}
-		return "in stock"
+		return StatusInStock
 	}
 }
 
@@ -249,7 +264,7 @@ func billingTurn(ctx adkagent.Context, msg string, crm *crmClient) (*adksession.
 		_ = ctx.Session().State().Set(orderNumberKey, number)
 	}
 
-	reply := "Sure. What’s the order number? It looks like ORD-1042."
+	reply := BillingAskOrder
 	if number != "" {
 		reply = formatOrderStatus(crm.findOrder(number))
 	}
@@ -266,22 +281,12 @@ func billingTurn(ctx adkagent.Context, msg string, crm *crmClient) (*adksession.
 
 func formatOrderStatus(record orderRecord) string {
 	if record.OrderNumber == "" {
-		return "I need an order number like ORD-1042 to look it up."
+		return BillingNeedOrder
 	}
 	if !record.Found {
-		if record.Message != "" {
-			return "I couldn’t find " + record.OrderNumber + " in CRM. " + record.Message
-		}
-		return "I couldn’t find " + record.OrderNumber + " in CRM. Check the number, or share the email on the order."
+		return billingNotFound(record.OrderNumber, record.Message)
 	}
-	reply := "Order " + record.OrderNumber + " is " + record.Status + "."
-	if record.Total != "" {
-		reply += " Total " + record.Total + " USD."
-	}
-	if record.CustomerEmail != "" {
-		reply += " Email on the order: " + record.CustomerEmail + "."
-	}
-	return reply
+	return billingOrderStatus(record.OrderNumber, record.Status, record.Total, record.CustomerEmail)
 }
 
 func sessionUserText(ctx adkagent.Context) string {
@@ -368,8 +373,3 @@ func mcpToolsets(cfg config.Config) (shop, billing, support []tool.Toolset) {
 	}
 	return shop, billing, support
 }
-
-const supportInstruction = `You are the Potato Merch support agent.
-Help with shipping, wash/care, fit, and restocks. Use Product tools for catalog facts.
-Create a Ticket in CRM only after the shopper confirms. Include customerEmail, category, and a short description.
-Never change order totals.`
