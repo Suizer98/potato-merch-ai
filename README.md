@@ -4,11 +4,11 @@ Potato Merch storefront backed by Twenty CRM, Stripe Test Mode checkout, and a G
 
 ## What you get
 
-- Store at http://localhost:3001 — catalog, cart, checkout
-- Twenty CRM at http://localhost:3000 — products, customers, orders
+- Storefront with catalog, cart, and checkout
+- Twenty CRM for products, customers, and orders
 - Stripe hosted Checkout when `STRIPE_SECRET_KEY` is a `sk_test_...` key
 - Potato Pay mock checkout if Stripe keys are empty
-- gRPC chat at `:50051` and grpcui at http://localhost:8080
+- Multi-agent chat (Shop / Billing / Support) over gRPC and SSE
 
 <img src="docs/landing.png" alt="Potato Merch landing" width="800" />
 
@@ -18,7 +18,9 @@ Potato Merch storefront backed by Twenty CRM, Stripe Test Mode checkout, and a G
 
 <img src="docs/billing.png" alt="Billing agent looking up an order" width="800" />
 
-## Quick start
+## Local development
+
+Prepare your api keys in `.env`:
 
 ```bash
 cp .env.example .env
@@ -35,10 +37,10 @@ Default CRM login: `admin@example.com` / `admin123`
 | gRPC chat | localhost:50051 |
 | Chat HTTP/SSE | localhost:8081 |
 
-Rebuild only the shop after frontend changes:
+Rebuild if dependencies change:
 
 ```bash
-docker compose up -d --build --no-deps --force-recreate store
+docker compose up -d --build --force-recreate store
 ```
 
 Re-seed catalog/API key without wiping CRM:
@@ -114,7 +116,8 @@ stripe listen --forward-to localhost:3001/api/webhooks/payment
 
 ### Test cards
 
-Use these only in Test mode.
+Use these only in Test mode. Any future expiry, any CVC, any postal code.
+More cards: https://docs.stripe.com/testing#cards
 
 | Card | Result |
 | --- | --- |
@@ -122,21 +125,17 @@ Use these only in Test mode.
 | 4000 0000 0000 0002 | Generic decline |
 | 4000 0000 0000 9995 | Insufficient funds |
 
-Any future expiry, any CVC, any postal code.
-
 After a successful pay you should see `/thanks` with a `cs_test_...` id and the same order as Paid in Twenty.
 
 ## Potato Pay (no Stripe)
 
 Leave `STRIPE_SECRET_KEY` empty. Checkout opens `/pay?session_id=cs_mock_...`. Pay / decline / cancel completes a mock session and an HMAC webhook updates CRM. Fine for local demos; not a real charge.
 
-## Chat (gRPC)
+## Chat
 
-Live demo (grpcui): https://potato-merch-ai.onrender.com
+The storefront Chat widget talks to the Go chat service. Shop / Billing / Support specialists run as an ADK Go 2.0 graph. Seed mints a Twenty API key for chat MCP (`/mcp`). Set `TWENTY_API_KEY` in `.env` only if you want to override that generated key.
 
-The storefront has a Chat widget that streams through `POST /api/chat` (SSE) into the Go ChatService. Shop / Billing / Support specialists are an ADK Go 2.0 graph. Seed mints a Twenty API key for chat MCP (`/mcp`). Set `TWENTY_API_KEY` in `.env` only if you want to override that generated key.
-
-Set `LLM_PROVIDER` in `.env` to `mock`, `groq`, `gemini`, or `openai`. Groq’s `llama-3.3-70b-versatile` is retired (shutdown 16 Aug 2026); default model is `openai/gpt-oss-120b`. Gemini free-tier default is `gemini-3.5-flash`. If provider is `groq` and Groq errors, the same turn is retried with Gemini when `GEMINI_API_KEY` is set.
+Set `LLM_PROVIDER` to `mock`, `groq`, `gemini`, or `openai`. If provider is `groq` and Groq errors, the same turn retries with Gemini when `GEMINI_API_KEY` is set.
 
 ```env
 LLM_PROVIDER=groq
@@ -151,18 +150,11 @@ GEMINI_API_KEY=AIza...
 GEMINI_MODEL=gemini-3.5-flash
 ```
 
-Chat is one provider at a time. Recreate chat after changing env:
+Recreate chat after changing env:
 
 ```bash
 docker compose up -d --build --force-recreate chat
 ```
-
-gRPC:
-
-- `Chat(ChatRequest) returns (stream ChatChunk)` with `agent_id` and `event`
-- HTTP SSE at `:8081/v1/chat` (store proxies `/api/chat`)
-- `ListSessions`
-- health + reflection enabled
 
 Local chat without Docker (Go 1.22+, buf): `make -C chat run`
 
@@ -173,7 +165,15 @@ Local chat without Docker (Go 1.22+, buf): `make -C chat run`
 3. `docker compose up --build --scale chat=2` scales chat.
 4. Put a load balancer in front of `:50051` when you need it.
 
-## Render (grpcui demo)
+## gRPC sample
+
+- `Chat(ChatRequest) returns (stream ChatChunk)` with `agent_id` and `event`
+- HTTP SSE at `:8081/v1/chat` (store proxies `/api/chat`)
+- `ListSessions`
+- health + reflection enabled
+- gRPC on `:50051`, grpcui at http://localhost:8080
+
+Live demo: https://potato-merch-ai.onrender.com
 
 The public demo uses `Dockerfile.render` so the URL is grpcui (HTTP). gRPC stays inside the container.
 
