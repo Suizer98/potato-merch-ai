@@ -6,6 +6,7 @@
 
 # Go
 bin/
+chat/tmp/
 *.exe
 *.test
 *.out

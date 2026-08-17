@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+# Local watch image: regenerates protobufs, then Air reloads on Go changes.
+
+FROM golang:1.26-alpine
+
+RUN apk add --no-cache git ca-certificates curl \
+  && curl -fsSL -o /usr/local/bin/buf \
+    "https://github.com/bufbuild/buf/releases/download/v1.47.2/buf-Linux-x86_64" \
+  && chmod +x /usr/local/bin/buf \
+  && go install github.com/air-verse/air@v1.61.7
+
+WORKDIR /src
+ENV PATH="/go/bin:${PATH}"
+
+EXPOSE 50051 8081
+# Prod Dockerfile always ran `buf generate`; host gen/ can panic at init if stale.
+CMD ["sh", "-c", "rm -rf gen && buf generate && exec air -c .air.toml"]

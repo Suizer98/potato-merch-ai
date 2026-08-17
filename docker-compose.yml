@@ -3,8 +3,14 @@ name: potato-merch-ai
 services:
   # --- gRPC chat ---
   chat:
-    build: ./chat
-    image: potato-merch-ai-chat:local
+    # Uncomment to restore prod image builds:
+    # build: ./chat
+    # image: potato-merch-ai-chat:local
+    build:
+      context: ./chat
+      dockerfile: Dockerfile.dev
+    image: potato-merch-ai-chat:dev
+    working_dir: /src
     ports:
       - "${GRPC_PORT:-50051}:50051"
       - "${CHAT_HTTP_PORT:-8081}:8081"
@@ -28,6 +34,9 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     volumes:
+      - ./chat:/src
+      - chat-gomod:/go/pkg/mod
+      - chat-gocache:/root/.cache/go-build
       - seed-state:/state:ro
     depends_on:
       server:
@@ -35,11 +44,11 @@ services:
       seed:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/grpc_health_probe", "-addr=:50051"]
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8081/healthz"]
       interval: 15s
       timeout: 3s
-      retries: 5
-      start_period: 5s
+      retries: 10
+      start_period: 180s
     restart: unless-stopped
     deploy:
       replicas: 1
@@ -165,10 +174,13 @@ services:
     restart: "no"
 
   store:
-    build:
-      context: ./store
-      dockerfile: Dockerfile
-    image: potato-merch-store:local
+    # Uncomment to restore prod image builds:
+    # build:
+    #   context: ./store
+    #   dockerfile: Dockerfile
+    # image: potato-merch-store:local
+    image: node:22-alpine
+    working_dir: /app
     depends_on:
       server:
         condition: service_healthy
@@ -181,10 +193,15 @@ services:
     env_file:
       - .env
     environment:
+      NODE_ENV: development
       PORT: ${STORE_PORT}
       CRM_URL: ${CRM_URL_INTERNAL}
       STORE_PUBLIC_URL: ${STORE_PUBLIC_URL}
       CHAT_HTTP_URL: ${CHAT_HTTP_URL_INTERNAL}
+    volumes:
+      - ./store:/app
+      - store-node-modules:/app/node_modules
+    command: ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0 --port $${PORT:-3001}"]
     healthcheck:
       test:
         [
@@ -196,7 +213,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
-      start_period: 10s
+      start_period: 90s
     restart: unless-stopped
 
   stripe-listen:
@@ -223,3 +240,6 @@ volumes:
   pg-data:
   server-local-data:
   seed-state:
+  chat-gomod:
+  chat-gocache:
+  store-node-modules:
